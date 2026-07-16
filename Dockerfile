@@ -1,17 +1,20 @@
-# Use a lightweight Alpine Linux image with Node.js 20 installed
-FROM node:20-alpine
+# Use the official Bun image, which is optimized for performance
+FROM oven/bun:latest
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy dependency manifests first to leverage Docker layer caching
-COPY package*.json ./
+COPY package.json bun.lockb ./
 
-# Install dependencies inside the container
-RUN npm install
+# Install dependencies using Bun
+RUN bun install
 
-# Expose the Vite default port to the host machine
+# Copy the rest of the application source code
+COPY . .
+
+# Expose the Vite default port
 EXPOSE 5173
 
-# Start the dev server and bind it to all network interfaces (0.0.0.0) so it can accept connections from outside the container
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Start the development server and bind to all network interfaces
+CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0"]
