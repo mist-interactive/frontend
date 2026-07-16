@@ -1,19 +1,24 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import Login from './Login';
+import Home from './Home';
+import Game from './Game';
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-   <div className="flex min-h-screen items-center justify-center bg-zinc-900">
-      <h1 className="text-4xl font-bold text-emerald-500 underline">
-        Tailwind v4 works!
-      </h1>
-    </div>
-  )
-}
+    <BrowserRouter>
+      {/* This navbar is always visible */}
+      <nav className="p-4 bg-zinc-800 text-white flex gap-4">
+        <Link to="/">Home</Link>
+        <Link to="/game">Game</Link>
+        <Link to="/login">Login</Link>
+      </nav>
 
-export default App
+      {/* This changes by URLS */}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/Game" element={<Game/>} />
+        <Route path="/Login" element={<Login/>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
