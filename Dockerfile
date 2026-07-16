@@ -5,7 +5,7 @@ FROM oven/bun:latest
 WORKDIR /app
 
 # Copy dependency manifests first to leverage Docker layer caching
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 
 # Install dependencies using Bun
 RUN bun install
