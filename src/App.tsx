@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Login from './Login';
 import Home from './Home';
 import Game from './Game';
+import ProtectedRoute from './ProtectedRoute';
 
 export default function App() {
   return (
@@ -16,8 +17,8 @@ export default function App() {
       {/* This changes by URLS */}
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/Game" element={<Game/>} />
-        <Route path="/Login" element={<Login/>} />
+        <Route path="/game" element={<ProtectedRoute><Game/></ProtectedRoute>} />
+        <Route path="/login" element={<Login/>} />
       </Routes>
     </BrowserRouter>
   );
