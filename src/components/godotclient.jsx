@@ -1,6 +1,8 @@
-export default function Game() {
-  return <iframe
-            src="/game/index.html"
+export default function GodotGame() {
+    console.log("--->");
+    return (
+        <iframe
+            src="/webport/webport.html"
             style={{
                 width: "100%",
                 height: "100%",
@@ -8,4 +10,5 @@ export default function Game() {
             }}
             title="Godot Game"
         />
+    );
 }
