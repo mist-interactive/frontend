@@ -28,8 +28,8 @@ RUN git clone https://github.com/mist-interactive/memoir-3167.git /root/memoir-3
 RUN mkdir /root/web && godot --headless --path /root/memoir-3167 --export-release "Web" "/root/web/index.html"
 
 
-# Use the official Bun image, which is optimized for performance
-FROM oven/bun:latest
+# Use the official Bun image
+FROM oven/bun:1.3.14-alpine
 
 # Set the working directory inside the container
 WORKDIR /app
