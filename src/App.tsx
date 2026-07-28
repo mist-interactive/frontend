@@ -1,32 +1,28 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import Login from './Login';
-import Home from './Home';
-import Game from './Game';
-import ProtectedRoute from './ProtectedRoute';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import GameLayout from './layouts/GameLayout';
+import StandardLayout from './layouts/StandardLayout';
+import Game from './pages/Game';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
-  // components return
   return (
     <BrowserRouter>
-      {/* lock app wrapper size to screen limits */}
-      <div className="flex flex-col h-screen w-screen overflow-hidden">
+      <Routes>
         
-        {/* This navbar is always visible */}
-        <nav className="p-4 bg-zinc-800 text-white flex gap-4 shrink-0">
-          <Link to="/">Home</Link>
-          <Link to="/game">Game</Link>
-          <Link to="/login">Login</Link>
-        </nav>
+        {/* The Game Layout */}
+        <Route element={<GameLayout />}>
+          <Route path="/game" element={<ProtectedRoute><Game/></ProtectedRoute>} />
+        </Route>
 
-        {/* This changes by URLS*/}
-        <main className="flex-1 w-full relative overflow-hidden">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/game" element={<ProtectedRoute><Game/></ProtectedRoute>} />
-            <Route path="/login" element={<Login/>} />
-          </Routes>
-        </main>
-      </div>
+        {/* The Standard Layout */}
+        <Route element={<StandardLayout/>}>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login/>} />
+        </Route>
+
+      </Routes>
     </BrowserRouter>
   );
 }
