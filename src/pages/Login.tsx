@@ -3,13 +3,12 @@ import { useNavigate } from "react-router-dom";
 export default function Login() {
   // Hooks always to the first rows!
   const navigate = useNavigate();
-  const login_url = "https://localhost:8443/api/login";
-  const renew_url = "https://localhost:8443/api/renew";
+
   // logic when button is pressed, async to make it nonblockin
   const handleLogin = async () => {
     try {
       // execute the post request to caddy endpoint
-      const response = await fetch(login_url, {
+      const response = await fetch('api/login', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -22,11 +21,11 @@ export default function Login() {
       });
       //verify HTTP status 200
       if (response.ok) {
-        // parse JSON body
+        // if need response body 
         //const data = await response.json();
 
         //save the token (ensure 'datat.token matches the exact keyt what backend sends)
-        const renewResponse = await fetch(renew_url, {
+        const renewResponse = await fetch('api/renew', {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -36,6 +35,7 @@ export default function Login() {
           }),
         });
         if (renewResponse.ok) {
+          // catch the jwt token from response 
           const jwt = await renewResponse.json();
           localStorage.setItem("jwt", jwt.token);
 
