@@ -8,7 +8,7 @@ export default function Login() {
   const handleLogin = async () => {
     try {
       // execute the post request to caddy endpoint
-      const response = await fetch('api/login', {
+      const response = await fetch('/api/login', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -25,7 +25,7 @@ export default function Login() {
         //const data = await response.json();
 
         //save the token (ensure 'datat.token matches the exact keyt what backend sends)
-        const renewResponse = await fetch('api/renew', {
+        const renewResponse = await fetch('/api/renew', {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -37,7 +37,7 @@ export default function Login() {
         if (renewResponse.ok) {
           // catch the jwt token from response 
           const jwt = await renewResponse.json();
-          localStorage.setItem("jwt", jwt.token);
+          localStorage.setItem("token", jwt.token);
 
           //force navigation to gameroute
           navigate("/game");
