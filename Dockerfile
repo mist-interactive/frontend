@@ -14,7 +14,7 @@ RUN bun install
 COPY . .
 
 # get the web export files from the game/base-img
-COPY --from=game/base-img /root/game /root/game
+COPY --from=base-img /root/game /root/game
 
 # Copy entry script
 COPY ./entrypoint.sh /bin/entrypoint.sh
