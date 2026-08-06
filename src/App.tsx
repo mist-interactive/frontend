@@ -13,7 +13,7 @@ export default function App() {
         
         {/* The Game Layout */}
         <Route element={<GameLayout />}>
-          <Route path="/game" element={<ProtectedRoute><Game/></ProtectedRoute>} />
+          <Route path="/game" element={<Game/>} />
         </Route>
 
         {/* The Standard Layout */}

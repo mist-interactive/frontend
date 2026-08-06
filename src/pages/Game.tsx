@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 // declare global interface for typescript
 declare global {
@@ -8,23 +8,34 @@ declare global {
 }
 
 export default function Game() {
-  // useState variable which controls iframe renderin
+  // useState variable which controls iframe rendering
   const [isGameReady, setIsGameReady] = useState(false);
 
-  // handler that transfers token and changes state
+  // useRef hook to access the iframe DOM element
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // handler that checks token and changes state
   const handlePlay = () => {
     // get it from local storage
     const token = localStorage.getItem("token");
 
-    // Varmistetaan, että token on olemassa
+    // check if token exists
     if (token) {
-      // transfer token into global object
-      window.gameJWT = token;
-      
-      // update state
+      // update state to render iframe into DOM
       setIsGameReady(true);
     } else {
       console.error("Test token couldnt be found.");
+    }
+  };
+
+  // handler that fires after iframe finishes loading
+  const handleIframeLoad = () => {
+    const token = localStorage.getItem("token");
+
+    // verify ref, contentWindow, and token exist before injecting
+    if (iframeRef.current && iframeRef.current.contentWindow && token) {
+      // transfer token into global object inside the iframe window context
+      iframeRef.current.contentWindow.gameJWT = token;
     }
   };
 
@@ -33,11 +44,13 @@ export default function Game() {
       {isGameReady ? (
         /* phase 2 game is rendered */
         <iframe
-            src="/game/index.html"
-            className="w-full h-full border-none block"
-            style={{ overflow: 'hidden' }}
-            scrolling="no"
-            title="Godot Game"
+          ref={iframeRef}
+          src="/game/index.html"
+          onLoad={handleIframeLoad}
+          className="w-full h-full border-none block"
+          style={{ overflow: 'hidden' }}
+          scrolling="no"
+          title="Godot Game"
         />
       ) : (
         /* phase 1 lobby */
