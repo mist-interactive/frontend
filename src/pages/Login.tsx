@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function Login() {
   // useState variables
@@ -7,7 +7,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const navigate = useNavigate();
+ 
 
   // submission handler
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -59,8 +59,8 @@ export default function Login() {
       // phase 3: save token to local storage for the iframe
       localStorage.setItem("token", jwtData.token);
 
-      // phase 4: redirect user
-      navigate("/"); 
+      // phase 4: redirect user 
+      window.location.href = "/";  
 
     } catch (err) {
       // handle network failures (backend is offline)
