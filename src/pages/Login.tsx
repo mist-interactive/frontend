@@ -46,7 +46,7 @@ export default function Login() {
 
       // phase 2: login successful and cookie is set. fetch jwt
       const renewResponse = await fetch('/api/renew', {
-          method: "GET", // check with backend if this is GET or POST
+          method: "POST",
       });
 
       if (!renewResponse.ok) {
@@ -60,7 +60,7 @@ export default function Login() {
       localStorage.setItem("token", jwtData.token);
 
       // phase 4: redirect user
-      navigate("/home"); 
+      navigate("/"); 
 
     } catch (err) {
       // handle network failures (backend is offline)
