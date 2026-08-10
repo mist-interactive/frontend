@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { Outlet } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
+export default function ProtectedRoute() {
   // Check from browser memory did we login
   const isAuthenticated = localStorage.getItem("token") !== null;
 
@@ -11,5 +11,5 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   // If token exists we let the user to that site
-  return children;
+  return <Outlet />;
 }

@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 
 export default function Navbar() {
-  //const navigate = useNavigate();
 
   // check if user is logged in
   const isAuthenticated = localStorage.getItem("token") !== null;
@@ -10,7 +9,8 @@ export default function Navbar() {
   const handleLogout = () => {
     // 1. remove the token from local storage
     localStorage.removeItem("token");
-    // 2. navigate to the home page or login page
+    
+    // 2. force hard refresh
     window.location.href = "/";
     
   };
