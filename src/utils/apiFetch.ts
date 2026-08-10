@@ -1,3 +1,5 @@
+import { HttpStatus } from '../utils/httpStatus';
+
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   // get token
   let token = localStorage.getItem("token");
@@ -20,20 +22,15 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   let response = await fetch(url, fetchOptions);
 
   // if not 401 return reposne normally
-  if (response.status !== 401) {
+  if (response.status !== HttpStatus.UNAUTHORIZED) {
     return response;
   }
 
   // if 401 (jwt expired), try silent refresh 
   try {
-    const renewResponse = await fetch("/api/renew", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // add body (backend expects)
-      body: JSON.stringify({ message: "hello" }),
-    });
+    const renewResponse = await fetch('/api/renew', {
+          method: "POST",
+      });
 
     if (renewResponse.ok) {
       // take new token
