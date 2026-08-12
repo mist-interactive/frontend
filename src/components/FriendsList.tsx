@@ -50,7 +50,7 @@ export default function FriendsList() {
             type="text" 
             value={newFriendName} 
             onChange={(e) => setNewFriendName(e.target.value)}
-            className="p-2 bg-gray-800 rounded outline-none border border-gray-600 focus:border-blue-500"
+            className=" w-full flex-1 p-2 bg-gray-800 rounded outline-none border border-gray-600 focus:border-blue-500"
             placeholder="Username"
             />
             <button 
