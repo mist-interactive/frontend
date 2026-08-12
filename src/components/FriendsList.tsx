@@ -41,7 +41,7 @@ export default function FriendsList() {
   };
 
   return (
-    <div className="p-4 bg-gray-900 text-white w-64 min-h-screen">
+    <div className="p-4 bg-gray-900 text-white w-64 h-full">
       <h2 className="text-xl font-bold mb-4">Friends</h2>
 
       {/* Add friend form */}
