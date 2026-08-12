@@ -68,6 +68,16 @@ export default function Profile() {
         </label>
 
         {/* Bio */}
+         <label className="flex flex-col gap-1">
+            Bio:
+            <input 
+            type="bio" 
+            value={userData.bio} 
+            onChange={(e) => handleInputChange('bio', e.target.value)} 
+            className="p-2 bg-gray-800 text-white rounded outline-none border border-gray-600 focus:border-blue-500"
+            />
+        </label>
+
         {/* Avatar */}
         <label className="flex flex-col gap-1">
             Avatar:
