@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
+import Profile from './pages/Profile';
 
 export default function App() {
   return (
@@ -25,6 +26,8 @@ export default function App() {
         {/* The Standard Layout */}
         <Route element={<StandardLayout/>}>
         <Route path="/" element={<Home />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:username" element={<Profile />} />
         <Route path="/login" element={<Login/>} />
         <Route path="/register" element={<Register/>} />
         </Route>
