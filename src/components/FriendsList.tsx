@@ -22,17 +22,22 @@ export default function FriendsList() {
   const handleAddFriend = () => {
     // Logic:
     // 1. Deny empty field
+    if (!newFriendName.trim()) return;
     // 2. create new friend object
+    const newFriend: Friend = {
+    id: Date.now().toString(),
+    username: newFriendName,
+    isOnline: true // assume online for testing
+  };
     // 3. call setFriends: copy old array with spread-operator??? and add new object.
+    setFriends([...friends, newFriend]);
     // 4. empty new friend nampe input field back to ""
+    setNewFriendName("");
   };
 
   // handler for removing friend
   const handleRemoveFriend = (idToRemove: string) => {
-    // Logic:
-    // 1. Call set friends
-    // 2. use friends.filter() -method to return new array
-    //    where is ever1one else but the id that was removed
+    setFriends(friends.filter((friend) => friend.id !== idToRemove));
   };
 
   return (
@@ -41,21 +46,38 @@ export default function FriendsList() {
 
       {/* Add friend form */}
       <div className="flex gap-2 mb-4">
-        {/* 
-          1. input-field, which value is binded newFriendName-state.
-          2. onChange updates newFriendName-state.
-          3. button, which onClick calls handleAddFriend.
-        */}
+        <input 
+            type="text" 
+            value={newFriendName} 
+            onChange={(e) => setNewFriendName(e.target.value)}
+            className="p-2 bg-gray-800 rounded outline-none border border-gray-600 focus:border-blue-500"
+            placeholder="Username"
+            />
+            <button 
+            onClick={handleAddFriend}
+            className="bg-blue-500 px-4 py-2 rounded font-bold"
+            >
+            Add
+            </button>
       </div>
 
       {/* Friendlist rendering */}
       <ul className="flex flex-col gap-2">
-        {/* 
-          1. use friends.map((friend) => ( ... )) render <li> for all.
-          2. remember to set key={friend.id} <li>-tag.
-          3. render online-status with green/red color
-          4. render delete button, which onClick calls handleRemoveFriend(friend.id).
-        */}
+        {friends.map((friend) => (
+        // every element needs unique attribute
+        <li key={friend.id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+            <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${friend.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+            <span>{friend.username}</span>
+            </div>
+            <button 
+            onClick={() => handleRemoveFriend(friend.id)}
+            className="text-red-500 hover:text-red-400 font-bold px-2"
+            >
+            X
+            </button>
+        </li>
+        ))}
       </ul>
     </div>
   );
