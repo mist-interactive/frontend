@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 export default function StandardLayout() {
   // components return
   return (
-    <div className="flex flex-col min-h-screen w-screen">
+    <div className="flex flex-col h-screen w-full overflow-hidden">
       
       <Navbar />
 
