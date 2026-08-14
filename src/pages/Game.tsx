@@ -71,7 +71,6 @@ export default function Game() {
         <iframe
           ref={iframeRef}
           src="/game/index.html"
-          onLoad={handleIframeLoad}
           className="w-full h-full border-none block"
           style={{ overflow: 'hidden' }}
           scrolling="no"
