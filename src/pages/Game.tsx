@@ -28,14 +28,25 @@ export default function Game() {
     }
   };
 
-  // handler that fires after iframe finishes loading
+  // handler triggered when the iframe finishes loading
   const handleIframeLoad = () => {
     const token = localStorage.getItem("token");
+    // mock match ID for testing purposes
+    const matchId = "test_match_123";
 
-    // verify ref, contentWindow, and token exist before injecting
+    // ensure iframe, its window object, and the token exist before sending
     if (iframeRef.current && iframeRef.current.contentWindow && token) {
-      // transfer token into global object inside the iframe window context
-      iframeRef.current.contentWindow.gameJWT = token;
+      
+      // construct the payload with a specific type identifier
+      const payload = {
+        type: "INIT_GAME",
+        token: token,
+        match_id: matchId
+      };
+
+      // send the payload to the iframe with postmessage
+      // '*' allows any origin. !!!!!Change to specific domain in production!!!!
+      iframeRef.current.contentWindow.postMessage(payload, "*");
     }
   };
 
