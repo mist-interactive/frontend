@@ -61,9 +61,43 @@ export default function Profile() {
    
   };
 
+  // Updating profile
   const handleSave = async () => {
-    // TODO: Write the apiFetch PATCH logic here
+    if (!userData)
+      {
+        return;
+      }
+      try {
+      // create a payload object with only the text fields.
+      const payload = {
+        email: userData.email,
+        bio: userData.bio
+      };
+
+      // execute request using your wrapper
+      const response = await apiFetch('/api/protected/profile', {
+        // define the correct HTTP method for updating data
+        method: 'PATCH',
+        // tell the server we are sending JSON data
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // convert the javascript object into a JSON string for transport
+        body: JSON.stringify(payload)
+      });
+
+      // if the server returns 200 OK (or 204 No Content)
+      if (response.ok) {
+        // success, exit edit mode to return to view mode
+        setIsEditing(false);
+      } else {
+        console.error("Failed to update profile, status:", response.status);
+      }
+    } catch (error) {
+      console.error("Network error during profile update:", error);
+    }
   };
+  
 
   // Render a loading screen while the fetch request is pending.
   if (isLoading) {
