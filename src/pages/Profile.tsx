@@ -19,7 +19,7 @@ export default function Profile() {
   const { username } = useParams();
 
   // init mock-data. if param in URL, use it, otherwise assume its /me
-  const [userData, setUserData] = useState<UserProfile> | null>(null);
+  const [userData, setUserData] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // state for view/edit modes
@@ -31,8 +31,12 @@ export default function Profile() {
         const endpoint = username ? `/api/protected/profile/${username}` : `/api/protected/profile`;
         const response = await apiFetch(endpoint);
         
-        if (response.ok) {
-          // TODO: Parse the JSON response and call setUserData()
+        if (response.ok) 
+        {
+          // parse the JSON response and call setUserData()
+          const data = await response.json();
+          setUserData(data);
+
         } else {
           console.error("Failed to fetch profile data, status:", response.status);
         }
