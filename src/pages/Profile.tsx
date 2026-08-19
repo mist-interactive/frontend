@@ -171,10 +171,10 @@ export default function Profile() {
         </label>
 
         <button 
-            onClick={() => setIsEditing(false)}
+            onClick={handleSave}
             className="bg-blue-500 hover:bg-blue-600 transition-colors px-4 py-2 mt-4 font-bold rounded"
         >
-            Save (Mock)
+            Save Profile
         </button>
         </div>
 
