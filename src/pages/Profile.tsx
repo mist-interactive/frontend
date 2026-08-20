@@ -18,7 +18,7 @@ export default function Profile() {
   // read dynamic param from URL (profile/usva --> username: usva )
   const { username } = useParams();
 
-  // init mock-data. if param in URL, use it, otherwise assume its /me
+  // if param in URL, use it, otherwise assume its /me
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
