@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from 'react-router-dom';
 import reactLogo from '../assets/react.svg'; //fallback pic for testing
+import { apiFetch } from "../utils/apiFetch";
+
 
 // define struct for ts
 interface UserProfile {
@@ -16,24 +18,96 @@ export default function Profile() {
   // read dynamic param from URL (profile/usva --> username: usva )
   const { username } = useParams();
 
-  // init mock-data. if param in URL, use it, otherwise assume its /me
-  const [userData, setUserData] = useState<UserProfile>({
-    username: username || "kaverin kaverin sedän profiili",
-    email: "maitopoika@luukku.com",
-    bio: "man i love fishing",
-    avatarUrl: null 
-  });
+  // if param in URL, use it, otherwise assume its /me
+  const [userData, setUserData] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // state for view/edit modes
   const [isEditing, setIsEditing] = useState(false);
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const endpoint = username ? `/api/protected/profile/${username}` : `/api/protected/profile`;
+        const response = await apiFetch(endpoint);
+        
+        if (response.ok) 
+        {
+          // parse the JSON response and call setUserData()
+          const data = await response.json();
+          setUserData(data);
+
+        } else {
+          console.error("Failed to fetch profile data, status:", response.status);
+        }
+      } catch (error) {
+        console.error("Network error during profile fetch:", error);
+      } finally {
+        // network request finished (success or fail). Turn off the loading screen.
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [username]);
+
   // handler for textfields
   const handleInputChange = (field: keyof UserProfile, value: string) => {
     // copy old object, and use dynamic key to modify wanted data
-    setUserData({...userData, [field]: value});
-
+    if (userData)
+      {
+        setUserData({...userData, [field]: value});
+      }
    
   };
+
+  // Updating profile
+  const handleSave = async () => {
+    if (!userData)
+      {
+        return;
+      }
+      try {
+      // create a payload object with only the text fields.
+      const payload = {
+        email: userData.email,
+        bio: userData.bio
+      };
+
+      // execute request using your wrapper
+      const response = await apiFetch('/api/protected/profile', {
+        // define the correct HTTP method for updating data
+        method: 'PATCH',
+        // tell the server we are sending JSON data
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // convert the javascript object into a JSON string for transport
+        body: JSON.stringify(payload)
+      });
+
+      // if the server returns 200 OK (or 204 No Content)
+      if (response.ok) {
+        // success, exit edit mode to return to view mode
+        setIsEditing(false);
+      } else {
+        console.error("Failed to update profile, status:", response.status);
+      }
+    } catch (error) {
+      console.error("Network error during profile update:", error);
+    }
+  };
+  
+
+  // Render a loading screen while the fetch request is pending.
+  if (isLoading) {
+    return <div className="p-4 bg-gray-900 text-white min-h-screen">Loading profile...</div>;
+  }
+
+  // If loading finished but we have no data (e.g., 404 Not Found), show an error.
+  if (!userData) {
+    return <div className="p-4 bg-gray-900 text-white min-h-screen">Profile not found.</div>;
+  }
 
   return (
     <div className="p-4 bg-gray-900 text-white min-h-screen">
@@ -97,10 +171,10 @@ export default function Profile() {
         </label>
 
         <button 
-            onClick={() => setIsEditing(false)}
+            onClick={handleSave}
             className="bg-blue-500 hover:bg-blue-600 transition-colors px-4 py-2 mt-4 font-bold rounded"
         >
-            Save (Mock)
+            Save Profile
         </button>
         </div>
 
