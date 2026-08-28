@@ -47,11 +47,10 @@ export default function FriendsList() {
     
     <div className={`absolute left-0 bottom-0 bg-gray-900 border-gray-700 text-white z-50 transition-all duration-300 overflow-hidden ${
       isExpanded 
-        ? 'w-64 h-full border-r' 
-        : 'w-16 h-16 border-r border-b rounded-br-lg' 
+        ? 'w64 h-full border-r'
+        : 'w-64 h-16 border-r border-t rounded-tr-lg'
         }`}>
-      
-      {/* New button to open the friendslist */}
+
       <button 
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full h-16 flex items-center justify-center hover:bg-gray-800 transition-colors border-b border-gray-700 text-xl font-bold"
