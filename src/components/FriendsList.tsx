@@ -1,53 +1,100 @@
-import { useState } from 'react';
+import { useState, useEffect, useReducer } from 'react';
+import { apiFetch } from '../utils/apiFetch';
 
 // friend data
 interface Friend {
-  id: string;
+  friendship_id: number;
+  user_id: number;
   username: string;
-  isOnline: boolean;
+  avatar_url: string | null;
+  status: 'pending' | 'accepted' | 'blocked';
+  is_incoming: boolean;
+}
+
+// component state
+interface FriendsState {
+  items: Friend[]; // store everythin in one array
+  isLoading: boolean;
+  error: string | null;
+}
+
+// actions
+type FriendsAction =
+  | { type: 'FETCH_START' }
+  | { type: 'FETCH_SUCCESS'; payload: Friend[] }
+  | { type: 'FETCH_ERROR'; payload: string };
+
+// React Reducer, takes list from api and sets it into a state
+function friendsReducer(state: FriendsState, action: FriendsAction): FriendsState {
+  switch (action.type) {
+    case 'FETCH_START':
+      return { ...state, isLoading: true, error: null };
+      
+    case 'FETCH_SUCCESS':
+      return { ...state, isLoading: false, items: action.payload };
+      
+    case 'FETCH_ERROR':
+      return { ...state, isLoading: false, error: action.payload };
+
+    default:
+      return state;
+  }
 }
 
 export default function FriendsList() {
 
   const [isExpanded, setIsExpanded] = useState(false);
-
-  // initialize with mock data for testing
-  const [friends, setFriends] = useState<Friend[]>([
-    { id: '1', username: 'mhirvasm', isOnline: true },
-    { id: '2', username: 'pelaaja2', isOnline: false },
-    { id: '3', username: 'testaaja', isOnline: true }
-  ]);
-
-  // state for newfriend input field
   const [newFriendName, setNewFriendName] = useState("");
 
-  // handler for adding new friend
+  // init useReducer
+  const [state, dispatch] = useReducer(friendsReducer, {
+    items: [],
+    isLoading: true,
+    error: null
+  });
+  
+  useEffect(() => {
+    const fetchFriends = async () => {
+      dispatch({ type: 'FETCH_START' });
+
+      try {
+        const response = await apiFetch('/api/protected/friends');
+        
+        if (!response.ok) {
+          throw new Error('Kaverilistan haku epäonnistui');
+        }
+        const data = await response.json();
+        
+        // send data to reducer
+        // reducer puts the data into state.items array.
+        dispatch({ type: 'FETCH_SUCCESS', payload: data });
+        
+      } catch (error) {
+        // error catching
+        dispatch({ type: 'FETCH_ERROR', payload: 'Something went wrong' });
+      }
+    };
+
+    // Execute
+    fetchFriends();
+    
+  }, []);
+
+  // handler for adding new friend (empty stub for now)
   const handleAddFriend = () => {
-    // Logic:
-    // 1. Deny empty field
-    if (!newFriendName.trim()) return;
-    // 2. create new friend object
-    const newFriend: Friend = {
-    id: Date.now().toString(),
-    username: newFriendName,
-    isOnline: true // assume online for testing
-  };
-    // 3. call setFriends: copy old array with spread-operator??? and add new object.
-    setFriends([...friends, newFriend]);
-    // 4. empty new friend nampe input field back to ""
-    setNewFriendName("");
+    // TODO: implement POST /friends logic here
   };
 
-  // handler for removing friend
-  const handleRemoveFriend = (idToRemove: string) => {
-    setFriends(friends.filter((friend) => friend.id !== idToRemove));
+  // handler for removing friend (empty stub for now)
+  const handleRemoveFriend = (friendship_id: number) => {
+    // TODO: implement DELETE /friends/{id} logic here
   };
 
   return (
-    
+    // Fixed: collapsed state width is now w-16
     <div className={`absolute left-0 bottom-0 bg-gray-900 border-gray-700 text-white z-50 transition-all duration-300 overflow-hidden ${
       isExpanded 
-        ? 'w64 h-full border-r'
+        ? 'w-64 h-full border-r'
         : 'w-64 h-16 border-r border-t rounded-tr-lg'
         }`}>
 
@@ -77,21 +124,27 @@ export default function FriendsList() {
                 onClick={handleAddFriend}
                 className="bg-blue-500 px-4 py-2 rounded font-bold"
                 >
-                Add
+                Add 
                 </button>
           </div>
 
+          {/* State indicators for loading and errors */}
+          {state.isLoading && <p className="text-sm text-gray-400 mb-2">Loading friends...</p>}
+          {state.error && <p className="text-sm text-red-500 mb-2">{state.error}</p>}
+
           {/* Friendlist rendering */}
           <ul className="flex flex-col gap-2">
-            {friends.map((friend) => (
-            // every element needs unique attribute
-            <li key={friend.id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+            {/* Using state.items instead of friends */}
+            {state.items.map((friend) => (
+            // every element needs unique attribute, now using friendship_id
+            <li key={friend.friendship_id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
                 <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${friend.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                {/* Replaced isOnline with status text for now */}
+                <div className="text-xs text-gray-400">[{friend.status}]</div>
                 <span>{friend.username}</span>
                 </div>
                 <button 
-                onClick={() => handleRemoveFriend(friend.id)}
+                onClick={() => handleRemoveFriend(friend.friendship_id)}
                 className="text-red-500 hover:text-red-400 font-bold px-2"
                 >
                 X

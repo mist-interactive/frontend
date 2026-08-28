@@ -8,7 +8,7 @@ export default function GlobalLayout() {
 
   return (
     // Changed to flex-col so items stack vertically
-    <div className="flex flex-col h-screen w-full bg-zinc-900 overflow-hidden">
+    <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
       
       {/* navbar is now at the very top and spans 100% width */}
       <Navbar />
