@@ -81,8 +81,60 @@ export default function FriendsList() {
   }, []);
 
   // handler for adding new friend (empty stub for now)
-  const handleAddFriend = () => {
-    // TODO: implement POST /friends logic here
+  // deny empty field
+    const handleAddFriend = async () => {
+    if (!newFriendName.trim()) return;
+
+    try {
+    
+        const response = await apiFetch('/api/protected/friends', {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            target: newFriendName
+          }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send friend request');
+      }
+
+      // empty new friend name input field
+      setNewFriendName("");
+
+      console.log("DEBUG: Friend equest sent!");
+
+    } catch (error) {
+      console.error(error);
+      // to show error on ui TODO:
+    }
+  };
+
+  // handler for accepting a friend request
+  const handleAcceptFriend = async (friendship_id: number) => {
+    try {
+      const response = await apiFetch(`/api/protected/friends/${friendship_id}`, {
+         method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "accepted"
+          }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to accept friend request');
+      }
+
+      // TODO: Update UI
+      console.log("Request accepted!");
+
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   // handler for removing friend (empty stub for now)
