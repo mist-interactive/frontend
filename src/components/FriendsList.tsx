@@ -22,7 +22,10 @@ interface FriendsState {
 type FriendsAction =
   | { type: 'FETCH_START' }
   | { type: 'FETCH_SUCCESS'; payload: Friend[] }
-  | { type: 'FETCH_ERROR'; payload: string };
+  | { type: 'FETCH_ERROR'; payload: string }
+  | { type: 'ADD_FRIEND'; payload: Friend }
+  | { type: 'UPDATE_STATUS'; payload: { id: number; status: 'accepted' | 'blocked' } }
+  | { type: 'REMOVE_FRIEND'; payload: number };;
 
 // React Reducer, takes list from api and sets it into a state
 function friendsReducer(state: FriendsState, action: FriendsAction): FriendsState {
@@ -35,6 +38,26 @@ function friendsReducer(state: FriendsState, action: FriendsAction): FriendsStat
       
     case 'FETCH_ERROR':
       return { ...state, isLoading: false, error: action.payload };
+    
+    case 'ADD_FRIEND':
+      // add new friend to the list
+      return { ...state, items: [...state.items, action.payload] };
+
+    case 'UPDATE_STATUS':
+      return {
+        ...state,
+        items: state.items.map(friend => 
+          friend.friendship_id === action.payload.id 
+            ? { ...friend, status: action.payload.status } 
+            : friend
+        )
+      };
+
+    case 'REMOVE_FRIEND':
+      return {
+        ...state,
+        items: state.items.filter(friend => friend.friendship_id !== action.payload)
+      };
 
     default:
       return state;
@@ -104,6 +127,18 @@ export default function FriendsList() {
       // empty new friend name input field
       setNewFriendName("");
 
+      const responseData = await response.json();
+      const newRequest: Friend = {
+        friendship_id: responseData.id,
+        user_id: 0, // Backend ei palauta tätä POST-kutsussa, asetetaan väliaikaisesti 0
+        username: newFriendName,
+        avatar_url: null,
+        status: responseData.status,
+        is_incoming: false // Pyyntö lähti meiltä, joten se ei ole saapuva
+      };
+
+dispatch({ type: 'ADD_FRIEND', payload: newRequest });
+
       console.log("DEBUG: Friend equest sent!");
 
     } catch (error) {
@@ -128,6 +163,10 @@ export default function FriendsList() {
       if (!response.ok) {
         throw new Error('Failed to accept friend request');
       }
+      dispatch({ 
+        type: 'UPDATE_STATUS', 
+        payload: { id: friendship_id, status: 'accepted' } 
+      });
 
       // TODO: Update UI
       console.log("Request accepted!");
@@ -137,9 +176,26 @@ export default function FriendsList() {
     }
   };
 
-  // handler for removing friend (empty stub for now)
-  const handleRemoveFriend = (friendship_id: number) => {
-    // TODO: implement DELETE /friends/{id} logic here
+  
+
+  // handler for removing friend
+  const handleRemoveFriend = async (friendship_id: number) => {
+    try {
+      const response = await apiFetch(`/api/protected/friends/${friendship_id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove friendship');
+      }
+
+      dispatch({ type: 'REMOVE_FRIEND', payload: friendship_id });
+
+      console.log("Friendship removed!");
+
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -186,22 +242,59 @@ export default function FriendsList() {
 
           {/* Friendlist rendering */}
           <ul className="flex flex-col gap-2">
-            {/* Using state.items instead of friends */}
             {state.items.map((friend) => (
-            // every element needs unique attribute, now using friendship_id
-            <li key={friend.friendship_id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+              
+              <li key={friend.friendship_id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+                
+                {/* Leftside : name */}
                 <div className="flex items-center gap-2">
-                {/* Replaced isOnline with status text for now */}
-                <div className="text-xs text-gray-400">[{friend.status}]</div>
-                <span>{friend.username}</span>
+                  <span>{friend.username}</span>
                 </div>
-                <button 
-                onClick={() => handleRemoveFriend(friend.friendship_id)}
-                className="text-red-500 hover:text-red-400 font-bold px-2"
-                >
-                X
-                </button>
-            </li>
+
+                {/* steam styled text*/}
+                <div className="flex gap-3 text-xs text-blue-600 font-bold">
+                  
+                  {/* Incoming friend request */}
+                  {friend.status === 'pending' && friend.is_incoming && (
+                    <>
+                      <button 
+                        onClick={() => handleAcceptFriend(friend.friendship_id)}
+                        className="hover:text-green-400 transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button 
+                        onClick={() => handleRemoveFriend(friend.friendship_id)}
+                        className="hover:text-white transition-colors"
+                      >
+                        Ignore
+                      </button>
+                    </>
+                  )}
+
+                  {/* Friendrequest sent */}
+                  {friend.status === 'pending' && !friend.is_incoming && (
+                    <button 
+                      onClick={() => handleRemoveFriend(friend.friendship_id)}
+                      className="hover:text-white transition-colors"
+                    >
+                      Cancel request
+                    </button>
+                  )}
+
+                  {/* Accepted friends */}
+                  {friend.status === 'accepted' && (
+                    <button 
+                      onClick={() => handleRemoveFriend(friend.friendship_id)}
+                      className="hover:text-red-400 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  )}
+
+                </div>
+              </li>
+              
             ))}
           </ul>
         </div>
