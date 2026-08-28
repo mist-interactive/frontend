@@ -7,23 +7,23 @@ export default function GlobalLayout() {
   const isAuthenticated = localStorage.getItem("token") !== null;
 
   return (
-    
-    <div className="flex h-screen w-full bg-sky-400 overflow-hidden">
+    // Changed to flex-col so items stack vertically
+    <div className="flex flex-col h-screen w-full bg-zinc-900 overflow-hidden">
       
-      {/* Friendslist is shown only if logged in */}
-      {isAuthenticated && <FriendsList />}
+      {/* navbar is now at the very top and spans 100% width */}
+      <Navbar />
       
-      {/* Navbar composition settings */}
-      <div className="flex flex-col flex-1">
+      {/* 2. Content wrapper for the remaining screen height. */}
+      <div className="flex-1 relative flex overflow-hidden">
         
-
-        <Navbar />
+        {/* The overlay sidebar */}
+        {isAuthenticated && <FriendsList />}
         
-        {/* Main content area */}
-        <main className="flex-1 overflow-y-auto relative">
-          {/* React Router injects wanted page here */}
+        {/* Main page content */}
+        <main className="flex-1 overflow-y-auto w-full h-full">
           <Outlet />
         </main>
+
       </div>
       
     </div>

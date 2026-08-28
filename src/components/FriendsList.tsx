@@ -8,6 +8,9 @@ interface Friend {
 }
 
 export default function FriendsList() {
+
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // initialize with mock data for testing
   const [friends, setFriends] = useState<Friend[]>([
     { id: '1', username: 'mhirvasm', isOnline: true },
@@ -41,44 +44,64 @@ export default function FriendsList() {
   };
 
   return (
-    <div className="p-4 bg-gray-900 text-white w-64 h-full">
-      <h2 className="text-xl font-bold mb-4">Friends</h2>
+    
+    <div className={`absolute left-0 bottom-0 bg-gray-900 border-gray-700 text-white z-50 transition-all duration-300 overflow-hidden ${
+      isExpanded 
+        ? 'w-64 h-full border-r' 
+        : 'w-16 h-16 border-r border-b rounded-br-lg' 
+        }`}>
+      
+      {/* New button to open the friendslist */}
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full h-16 flex items-center justify-center hover:bg-gray-800 transition-colors border-b border-gray-700 text-xl font-bold"
+      >
+        {isExpanded ? "✖" : "👥"}
+      </button>
 
-      {/* Add friend form */}
-      <div className="flex gap-2 mb-4">
-        <input 
-            type="text" 
-            value={newFriendName} 
-            onChange={(e) => setNewFriendName(e.target.value)}
-            className=" w-full flex-1 p-2 bg-gray-800 rounded outline-none border border-gray-600 focus:border-blue-500"
-            placeholder="Username"
-            />
-            <button 
-            onClick={handleAddFriend}
-            className="bg-blue-500 px-4 py-2 rounded font-bold"
-            >
-            Add
-            </button>
-      </div>
+      {/* Rendering*/}
+      {isExpanded && (
+        <div className="p-4 overflow-y-auto h-[calc(100%-4rem)]">
+          
+          <h2 className="text-xl font-bold mb-4">Friends</h2>
 
-      {/* Friendlist rendering */}
-      <ul className="flex flex-col gap-2">
-        {friends.map((friend) => (
-        // every element needs unique attribute
-        <li key={friend.id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
-            <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${friend.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-            <span>{friend.username}</span>
-            </div>
-            <button 
-            onClick={() => handleRemoveFriend(friend.id)}
-            className="text-red-500 hover:text-red-400 font-bold px-2"
-            >
-            X
-            </button>
-        </li>
-        ))}
-      </ul>
+          {/* Add friend form */}
+          <div className="flex gap-2 mb-4">
+            <input 
+                type="text" 
+                value={newFriendName} 
+                onChange={(e) => setNewFriendName(e.target.value)}
+                className=" w-full flex-1 p-2 bg-gray-800 rounded outline-none border border-gray-600 focus:border-blue-500"
+                placeholder="Username"
+                />
+                <button 
+                onClick={handleAddFriend}
+                className="bg-blue-500 px-4 py-2 rounded font-bold"
+                >
+                Add
+                </button>
+          </div>
+
+          {/* Friendlist rendering */}
+          <ul className="flex flex-col gap-2">
+            {friends.map((friend) => (
+            // every element needs unique attribute
+            <li key={friend.id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+                <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${friend.isOnline ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                <span>{friend.username}</span>
+                </div>
+                <button 
+                onClick={() => handleRemoveFriend(friend.id)}
+                className="text-red-500 hover:text-red-400 font-bold px-2"
+                >
+                X
+                </button>
+            </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
