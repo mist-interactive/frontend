@@ -225,6 +225,11 @@ dispatch({ type: 'ADD_FRIEND', payload: newRequest });
                 type="text" 
                 value={newFriendName} 
                 onChange={(e) => setNewFriendName(e.target.value)}
+                onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAddFriend();
+                }
+              }}
                 className=" w-full flex-1 p-2 bg-gray-800 rounded outline-none border border-gray-600 focus:border-blue-500"
                 placeholder="Username"
                 />
