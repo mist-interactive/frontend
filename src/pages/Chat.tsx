@@ -42,8 +42,6 @@ export default function Chat() {
 
     <div className="flex h-full w-full bg-gray-950">
       
-      {/* Left side */}
-      <FriendsList />
       
       {/* Right side for upcoming messages */}
       <div className="flex-1 flex flex-col p-4">
