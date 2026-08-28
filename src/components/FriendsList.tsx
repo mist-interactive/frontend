@@ -61,7 +61,7 @@ export default function FriendsList() {
         const response = await apiFetch('/api/protected/friends');
         
         if (!response.ok) {
-          throw new Error('Kaverilistan haku epäonnistui');
+          throw new Error('Error fetching friendslist');
         }
         const data = await response.json();
         
