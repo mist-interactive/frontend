@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import GameLayout from './layouts/GameLayout';
 import StandardLayout from './layouts/StandardLayout';
+import GlobalLayout from './layouts/GlobalLayout';
 import Game from './pages/Game';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -14,24 +15,25 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         
-        {/* the game layout */}
-        <Route element={<GameLayout />}>
+        <Route element={<GlobalLayout />}>
           
-          {/* the protected route acts as a gatekeeper for anything nested inside it */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/game" element={<Game/>} />
-          </Route>
-          
-        </Route>
+          {/* Public routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        {/* The Standard Layout */}
-        <Route element={<StandardLayout/>}>
-        <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/:username" element={<Profile />} />
-        <Route path="/chat" element={<Chat/>} />
-        <Route path="/login" element={<Login/>} />
-        <Route path="/register" element={<Register/>} />
+          {/* Protected routes, if not logged in, redirected to /login*/}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/:username" element={<Profile />} />
+            <Route path="/chat" element={<Chat />} />
+            
+            {/* Gamelayout*/}
+            <Route element={<GameLayout />}>
+              <Route path="/game" element={<Game />} />
+            </Route>
+          </Route>
+
         </Route>
 
       </Routes>
