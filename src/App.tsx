@@ -26,7 +26,6 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:username" element={<Profile />} />
-            <Route path="/chat" element={<Chat />} />
             
             {/* Gamelayout*/}
             <Route element={<GameLayout />}>
