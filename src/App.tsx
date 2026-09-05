@@ -8,7 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
 import Profile from './pages/Profile';
-import Chat from './pages/Chat';
+
 
 export default function App() {
   return (

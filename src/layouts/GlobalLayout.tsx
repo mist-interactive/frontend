@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FriendsList from '../components/FriendsList';
+import ChatWindow from '../components/ChatWindow';
 
 export default function GlobalLayout() {
  
@@ -18,6 +19,14 @@ export default function GlobalLayout() {
         
         {/* The overlay sidebar */}
         {isAuthenticated && <FriendsList />}
+
+        {/* Temp test  */}
+        {isAuthenticated && (
+          <ChatWindow 
+            friendUsername="nraatika" 
+            onClose={() => console.log("Sulje painettu")} 
+          />
+        )}
         
         {/* Main page content */}
         <main className="flex-1 overflow-y-auto w-full h-full">
