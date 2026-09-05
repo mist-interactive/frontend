@@ -1,5 +1,6 @@
 import { useState, useEffect, useReducer } from 'react';
 import { apiFetch } from '../utils/apiFetch';
+import { HttpStatus } from '../utils/httpStatus';
 
 // friend data
 interface Friend {
@@ -121,7 +122,7 @@ export default function FriendsList() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send friend request');
+        throw new Error('Failed to send friend request. User might not exist.');
       }
 
       // empty new friend name input field
@@ -130,20 +131,19 @@ export default function FriendsList() {
       const responseData = await response.json();
       const newRequest: Friend = {
         friendship_id: responseData.id,
-        user_id: 0, // Backend ei palauta tätä POST-kutsussa, asetetaan väliaikaisesti 0
+        user_id: 0,
         username: newFriendName,
         avatar_url: null,
         status: responseData.status,
-        is_incoming: false // Pyyntö lähti meiltä, joten se ei ole saapuva
+        is_incoming: false
       };
 
-dispatch({ type: 'ADD_FRIEND', payload: newRequest });
+      dispatch({ type: 'ADD_FRIEND', payload: newRequest });
 
-      console.log("DEBUG: Friend equest sent!");
-
-    } catch (error) {
-      console.error(error);
-      // to show error on ui TODO:
+      } catch (error: any) {
+      // Dispatch the error to the reducer so the UI displays it to the user.
+      // Reusing FETCH_ERROR as it maps to the same state.error string.
+      dispatch({ type: 'FETCH_ERROR', payload: error.message });
     }
   };
 
@@ -168,7 +168,6 @@ dispatch({ type: 'ADD_FRIEND', payload: newRequest });
         payload: { id: friendship_id, status: 'accepted' } 
       });
 
-      // TODO: Update UI
       console.log("Request accepted!");
 
     } catch (error) {
@@ -184,6 +183,11 @@ dispatch({ type: 'ADD_FRIEND', payload: newRequest });
       const response = await apiFetch(`/api/protected/friends/${friendship_id}`, {
         method: "DELETE",
       });
+      // request doesnt exist on the server anymore, force UI update to clear the ghost state and exit
+      if (response.status === HttpStatus.NOT_FOUND) {
+          dispatch({ type: 'REMOVE_FRIEND', payload: friendship_id });
+          return;
+        }
 
       if (!response.ok) {
         throw new Error('Failed to remove friendship');
