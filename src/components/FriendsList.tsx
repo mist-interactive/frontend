@@ -64,8 +64,11 @@ function friendsReducer(state: FriendsState, action: FriendsAction): FriendsStat
       return state;
   }
 }
+interface FriendsListProps {
+  onOpenChat?: (username: string) => void;
+}
 
-export default function FriendsList() {
+export default function FriendsList({ onOpenChat }: FriendsListProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [newFriendName, setNewFriendName] = useState("");
@@ -257,7 +260,16 @@ export default function FriendsList() {
                 
                 {/* Leftside : name */}
                 <div className="flex items-center gap-2">
-                  <span>{friend.username}</span>
+                  <span 
+                    className={friend.status === 'accepted' ? "cursor-pointer hover:text-gray-300" : ""}
+                    onClick={() => {
+                      if (friend.status === 'accepted' && onOpenChat) {
+                        onOpenChat(friend.username);
+                      }
+                    }}
+                  >
+                    {friend.username}
+                  </span>
                 </div>
 
                 {/* steam styled text*/}

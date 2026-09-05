@@ -77,8 +77,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
     /* 
       Main container
     */
-   <div className="fixed bottom-0 left-[17rem] w-80 h-96 bg-gray-950 border border-gray-700 rounded-t-lg flex flex-col z-40 shadow-xl">
-      
+   <div className="w-80 h-96 bg-gray-950 border border-gray-700 rounded-t-lg flex flex-col shadow-xl">
       {/* HEADER: Shows who we are talking to and the close button */}
       <div className="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700 rounded-t-lg">
         <span className="font-bold text-white">{friendUsername}</span>
