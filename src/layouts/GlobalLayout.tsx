@@ -40,7 +40,6 @@ export default function GlobalLayout() {
   //if auth use websocket
   return (
     <WebSocketProvider>
-    // Changed to flex-col so items stack vertically
     <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
 
       {/* navbar is now at the very top and spans 100% width */}
