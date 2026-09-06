@@ -41,7 +41,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // cnstruct the connection URL.
+    // cnstruct the connection URL. TODO: CHECK THE URL IS RIGHT
     const url = `ws://localhost:8080/api/ws?token=${token}`;
 
     // open the connection.
