@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/apiFetch';
+import { useWebSocket } from '../contexts/WebSocketContext';
 
 /*
   INTERFACE: Matches the Go backend JSON output for Message exactly.
@@ -11,6 +12,7 @@ export interface Message {
   content: string;
   is_read: boolean;
   created_at: string;
+  sender_username: string;
 }
 
 /*
@@ -29,6 +31,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
   const [currentMessage, setCurrentMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { sendMessage, lastMessage } = useWebSocket();
 
   /*
     EFFECT: Fetches message history when the window mounts.
@@ -59,18 +62,57 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
     fetchMessages();
   }, [friendUsername]);
 
+  // listen for incoming websocket messages.
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    // check if it's a DM and if it belongs to this specific chat window
+    if (lastMessage.type === 'direct_message_recv' && lastMessage.payload.username === friendUsername) {
+      const incomingMsg: Message = {
+        id: lastMessage.payload.id,
+        sender_id: -1, // We don't have the numeric ID in the WS payload, but that's ok
+        recipient_id: -1, 
+        content: lastMessage.payload.content,
+        is_read: false,
+        created_at: lastMessage.payload.created_at,
+        sender_username: lastMessage.payload.username
+      };
+
+      // Append incoming message to the local list
+      setMessages((prevMessages) => [...prevMessages, incomingMsg]);
+    }
+  }, [lastMessage, friendUsername]);
+
   /*
     HANDLER: Sends a new message.
     Currently a stub. Because of our architecture, this will NOT be an HTTP POST.
     It will be a WebSocket transmission to avoid overhead and enable instant two-way delivery.
   */
-  const handleSendMessage = () => {
+ const handleSendMessage = () => {
     if (!currentMessage.trim()) return;
     
-    // TODO: Implement WebSocket send logic here.
-    // Example: ws.send(JSON.stringify({ action: "send_message", target: friendUsername, content: currentMessage }));
+    // Send the JSON payload exactly as the backend expects
+    sendMessage({
+      type: "direct_message_send",
+      payload: {
+        username: friendUsername,
+        content: currentMessage
+      }
+    });
 
-    setCurrentMessage("");
+    // Optimistic UI update: draw our own message immediately
+    const optimisticMsg: Message = {
+      id: Date.now(), // Temporary fake ID for React keys
+      sender_id: 0, // 0 represents "ME" right now
+      recipient_id: 0,
+      content: currentMessage,
+      is_read: true,
+      created_at: new Date().toISOString(),
+      sender_username: "ME"
+    };
+
+    setMessages((prevMessages) => [...prevMessages, optimisticMsg]);
+    setCurrentMessage(""); // Clear input field
   };
 
   return (
@@ -102,7 +144,9 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
             <div className="flex justify-between items-end gap-4 mb-1 border-b border-zinc-700 pb-1">
               
               {/* NOTE: We only have sender_id right now. We will need logic later to map ID to username. */}
-              <span className="text-amber-500 font-bold text-[10px] uppercase tracking-wider">{msg.sender_id}</span>              
+              <span className={`font-bold text-[10px] uppercase tracking-wider ${msg.sender_username === 'ME' ? 'text-lime-500' : 'text-amber-500'}`}>
+                {msg.sender_username || `USER_ID:${msg.sender_id}`}
+              </span>              
               {/* Format the Go timestamp into HH:MM format */}
               <span className="text-zinc-500 font-bold text-[10px]">
                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
