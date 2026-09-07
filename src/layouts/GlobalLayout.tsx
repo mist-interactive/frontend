@@ -1,11 +1,13 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FriendsList from '../components/FriendsList';
 import ChatWindow from '../components/ChatWindow';
 import { useState } from 'react';
+import { WebSocketProvider } from '../contexts/WebSocketContext';
 
 export default function GlobalLayout() {
- 
+  // UseLocation forces to rerender the component always after URL changes
+  const location = useLocation();
   const isAuthenticated = localStorage.getItem("token") !== null;
   
   // to track open active chats
@@ -23,14 +25,27 @@ export default function GlobalLayout() {
     setActiveChats(activeChats.filter(u => u !== username));
   };
 
+  // if not authenticated, show naked version of the page, no ws connection established
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto w-full h-full">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
+
+  //if auth use websocket
   return (
-    // Changed to flex-col so items stack vertically
+    <WebSocketProvider>
     <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
 
       {/* navbar is now at the very top and spans 100% width */}
       <Navbar />
       
-      {/* 2. Content wrapper for the remaining screen height. */}
+      {/* content wrapper for the remaining screen height. */}
       <div className="flex-1 relative flex overflow-hidden">
         
         {/* The overlay sidebar */}
@@ -55,7 +70,7 @@ export default function GlobalLayout() {
         </main>
 
       </div>
-      
     </div>
+    </WebSocketProvider>
   );
 }

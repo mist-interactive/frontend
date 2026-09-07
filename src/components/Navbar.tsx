@@ -22,7 +22,6 @@ export default function Navbar() {
         <Link to="/">Home</Link>
         <Link to="/game">Game</Link>
         <Link to="/profile">Profile</Link>
-        <Link to="/chat">ChatDemo</Link>
       </div>
 
       <div className="flex gap-4 items-center">
