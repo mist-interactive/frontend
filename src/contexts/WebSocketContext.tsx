@@ -15,7 +15,7 @@ interface WebSocketContextType {
 // initialize the Context. Default is null before the Provider mounts.
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
-// 3. Custom hook for child components to consume the context.
+// Custom hook for child components to consume the context.
 // Usage: const { sendMessage, lastMessage } = useWebSocket();
 export const useWebSocket = () => {
   const context = useContext(WebSocketContext);
@@ -25,7 +25,7 @@ export const useWebSocket = () => {
   return context;
 };
 
-// 4. The Provider component that handles the actual I/O logic.
+// Provider component actual I/O logic.
 export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
   // useState is used ONLY for incoming data that requires UI re-renders.
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
@@ -41,7 +41,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // cnstruct the connection URL. TODO: CHECK THE URL IS RIGHT
+    // cnstruct the connection URL.
     const url = `wss://localhost:8443/api/ws?token=${token}`;
 
     // open the connection.
