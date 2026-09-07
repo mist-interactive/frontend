@@ -4,6 +4,7 @@ import FriendsList from '../components/FriendsList';
 import ChatWindow from '../components/ChatWindow';
 import { useState } from 'react';
 import { WebSocketProvider } from '../contexts/WebSocketContext';
+import MatchmakingOverlay from './MatchmakingOverlay';
 
 export default function GlobalLayout() {
   // UseLocation forces to rerender the component always after URL changes
@@ -66,6 +67,8 @@ export default function GlobalLayout() {
         
         {/* Main page content */}
         <main className="flex-1 overflow-y-auto w-full h-full">
+          <MatchmakingOverlay />
+
           <Outlet />
         </main>
 
