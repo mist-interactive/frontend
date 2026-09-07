@@ -42,7 +42,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // cnstruct the connection URL. TODO: CHECK THE URL IS RIGHT
-    const url = `ws://localhost:8080/api/ws?token=${token}`;
+    const url = `wss://localhost:8443/api/ws?token=${token}`;
 
     // open the connection.
     ws.current = new WebSocket(url);
