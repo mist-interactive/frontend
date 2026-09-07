@@ -150,7 +150,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
       </div>
 
       {/* MESSAGE LOG: flex-1 takes remaining space, overflow-y-auto makes it scrollable */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4 bg-zinc-900">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4 bg-zinc-900 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:bg-zinc-600">
         
         {isLoading && <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest text-center border-2 border-zinc-800 p-2">Loading...</span>}
         {error && <span className="text-red-400 text-xs font-bold uppercase tracking-widest text-center border-2 border-red-900 p-2">{error}</span>}
