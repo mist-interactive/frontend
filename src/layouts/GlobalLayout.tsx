@@ -54,7 +54,7 @@ export default function GlobalLayout() {
 
         {/* Temp test  */}
         {isAuthenticated && (
-          <div className="fixed bottom-0 left-[17rem] flex items-end gap-4 z-40">
+          <div className="fixed bottom-0 left-[21rem] flex items-end gap-4 z-40">
             {activeChats.map((username) => (
               <ChatWindow 
                 key={username}

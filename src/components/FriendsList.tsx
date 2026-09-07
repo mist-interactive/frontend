@@ -1,6 +1,7 @@
 import { useState, useEffect, useReducer } from 'react';
 import { apiFetch } from '../utils/apiFetch';
 import { HttpStatus } from '../utils/httpStatus';
+import { useWebSocket } from '../contexts/WebSocketContext';
 
 // friend data
 interface Friend {
@@ -72,6 +73,8 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [newFriendName, setNewFriendName] = useState("");
+
+  const { sendMessage } = useWebSocket();
 
   // init useReducer
   const [state, dispatch] = useReducer(friendsReducer, {
@@ -205,117 +208,135 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
     }
   };
 
-  return (
-    // Fixed: collapsed state width is now w-16
-    <div className={`absolute left-0 bottom-0 bg-gray-900 border-gray-700 text-white z-50 transition-all duration-300 overflow-hidden ${
-      isExpanded 
-        ? 'w-64 h-full border-r'
-        : 'w-64 h-16 border-r border-t rounded-tr-lg'
-        }`}>
+  // handler for challenging a friend via websocket
+  const handleChallenge = (username: string) => {
+    sendMessage({
+      type: "match_invite_send",
+      payload: { username: username }
+    });
+    console.log(`[WS] Challenge sent to ${username}`);
+  };
 
+
+  return (
+    // main tactical wrapper. dynamic width based on state. hard borders.
+    <div className={`absolute left-0 bottom-0 bg-zinc-900 border-black z-50 transition-all duration-300 overflow-hidden font-sans flex flex-col ${
+      isExpanded 
+        ? 'w-80 h-full border-r-4 border-t-0'
+        : 'w-16 h-16 border-r-4 border-t-4'
+    }`}>
+
+      {/* toggle button - acts as the header */}
       <button 
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full h-16 flex items-center justify-center hover:bg-gray-800 transition-colors border-b border-gray-700 text-xl font-bold"
+        className="w-full h-16 shrink-0 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 transition-colors border-b-4 border-black text-xl font-bold uppercase tracking-widest text-zinc-100"
       >
-        {isExpanded ? "✖" : "👥"}
+        {isExpanded ? "FRIENDS" : "👥"}
       </button>
 
-      {/* Rendering*/}
+      {/* content area */}
       {isExpanded && (
-        <div className="p-4 overflow-y-auto h-[calc(100%-4rem)]">
+        <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-6">
           
-          <h2 className="text-xl font-bold mb-4">Friends</h2>
+          {/* error/loading indicators wrapped in tactical alert boxes */}
+          {state.isLoading && <div className="bg-zinc-800 border-4 border-black p-2 text-xs font-bold uppercase text-zinc-400 text-center">Loading Data...</div>}
+          {state.error && <div className="bg-red-900/50 border-4 border-red-500 p-2 text-xs font-bold uppercase text-red-200 text-center">{state.error}</div>}
 
-          {/* Add friend form */}
-          <div className="flex gap-2 mb-4">
+          {/* add friend form */}
+          <div className="flex gap-2 w-full">
             <input 
                 type="text" 
                 value={newFriendName} 
                 onChange={(e) => setNewFriendName(e.target.value)}
-                onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleAddFriend();
-                }
-              }}
-                className=" w-full flex-1 p-2 bg-gray-800 rounded outline-none border border-gray-600 focus:border-blue-500"
-                placeholder="Username"
-                />
-                <button 
-                onClick={handleAddFriend}
-                className="bg-blue-500 px-4 py-2 rounded font-bold"
-                >
-                Add 
-                </button>
+                onKeyDown={(e) => e.key === 'Enter' && handleAddFriend()}
+                className="flex-1 bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-700 transition-colors text-white uppercase tracking-wider text-xs font-bold"
+                placeholder="USERNAME"
+            />
+            <button 
+              onClick={handleAddFriend}
+              className="bg-lime-700 text-white font-bold uppercase tracking-widest px-3 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-xs"
+            >
+              Add
+            </button>
           </div>
 
-          {/* State indicators for loading and errors */}
-          {state.isLoading && <p className="text-sm text-gray-400 mb-2">Loading friends...</p>}
-          {state.error && <p className="text-sm text-red-500 mb-2">{state.error}</p>}
-
-          {/* Friendlist rendering */}
-          <ul className="flex flex-col gap-2">
+          {/* friend list rendering */}
+          <ul className="flex flex-col gap-3">
             {state.items.map((friend) => (
               
-              <li key={friend.friendship_id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+              // tactical list item block
+              <li key={friend.friendship_id} className="flex flex-col bg-zinc-800 border-4 border-black p-3 shadow-[4px_4px_0_0_#000000]">
                 
-                {/* Leftside : name */}
-                <div className="flex items-center gap-2">
-                  <span 
-                    className={friend.status === 'accepted' ? "cursor-pointer hover:text-gray-300" : ""}
-                    onClick={() => {
-                      if (friend.status === 'accepted' && onOpenChat) {
-                        onOpenChat(friend.username);
-                      }
-                    }}
-                  >
+                {/* top row: username and status icon */}
+                <div className="flex justify-between items-center w-full mb-2">
+                  <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">
                     {friend.username}
                   </span>
+                  
+                  {/* visual indicator of status */}
+                  {friend.status === 'accepted' && <span className="text-lime-500 text-xl font-bold leading-none">+</span>}
+                  {friend.status === 'pending' && <span className="text-amber-500 text-xs font-bold uppercase">Pending</span>}
                 </div>
 
-                {/* steam styled text*/}
-                <div className="flex gap-3 text-xs text-blue-600 font-bold">
+                {/* bottom row: tactical action buttons */}
+                <div className="flex gap-3 justify-end border-t-2 border-zinc-900 pt-3">
                   
-                  {/* Incoming friend request */}
+                  {/* pending incoming requests */}
                   {friend.status === 'pending' && friend.is_incoming && (
                     <>
                       <button 
                         onClick={() => handleAcceptFriend(friend.friendship_id)}
-                        className="hover:text-green-400 transition-colors"
+                        className="text-lime-500 hover:text-lime-400 font-bold uppercase text-xs tracking-widest transition-colors"
                       >
                         Accept
                       </button>
                       <button 
                         onClick={() => handleRemoveFriend(friend.friendship_id)}
-                        className="hover:text-white transition-colors"
+                        className="text-red-500 hover:text-red-400 font-bold uppercase text-xs tracking-widest transition-colors"
                       >
                         Ignore
                       </button>
                     </>
                   )}
 
-                  {/* Friendrequest sent */}
+                  {/* pending outgoing requests */}
                   {friend.status === 'pending' && !friend.is_incoming && (
                     <button 
                       onClick={() => handleRemoveFriend(friend.friendship_id)}
-                      className="hover:text-white transition-colors"
+                      className="text-zinc-500 hover:text-zinc-400 font-bold uppercase text-xs tracking-widest transition-colors"
                     >
-                      Cancel request
+                      Cancel
                     </button>
                   )}
 
-                  {/* Accepted friends */}
+                  {/* accepted friends actions */}
                   {friend.status === 'accepted' && (
-                    <button 
-                      onClick={() => handleRemoveFriend(friend.friendship_id)}
-                      className="hover:text-red-400 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  )}
+                    <>
+                      <button 
+                        onClick={() => onOpenChat && onOpenChat(friend.username)}
+                        className="text-zinc-300 hover:text-zinc-100 font-bold uppercase text-xs tracking-widest transition-colors"
+                      >
+                        Chat
+                      </button>
+                      
+                      {/* the new challenge button */}
+                      <button 
+                        onClick={() => handleChallenge(friend.username)}
+                        className="text-amber-500 hover:text-amber-400 font-bold uppercase text-xs tracking-widest transition-colors"
+                      >
+                        Duel
+                      </button>
 
+                      <button 
+                        onClick={() => handleRemoveFriend(friend.friendship_id)}
+                        className="text-zinc-600 hover:text-red-500 font-bold uppercase text-xs tracking-widest transition-colors ml-auto"
+                      >
+                        Del
+                      </button>
+                    </>
+                  )}
                 </div>
               </li>
-              
             ))}
           </ul>
         </div>
