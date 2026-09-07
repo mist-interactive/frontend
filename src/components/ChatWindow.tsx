@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/apiFetch';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
@@ -44,6 +44,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { sendMessage, lastMessage } = useWebSocket();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const myUserId = getMyUserId();
 
   /*
@@ -128,6 +129,10 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
     setCurrentMessage(""); // Clear input field
   };
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [messages]);
+
   return (
     /* 
       Main container
@@ -181,6 +186,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
             </div>
           );
         })}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* INPUT AREA: Matches old Chat.tsx logic */}
