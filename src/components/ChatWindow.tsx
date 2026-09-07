@@ -77,57 +77,56 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
     /* 
       Main container
     */
-   <div className="w-80 h-96 bg-gray-950 border border-gray-700 rounded-t-lg flex flex-col shadow-xl">
+   <div className="w-80 h-96 border-black border-b-0 flex flex-col shadow-[8px_8px_0_0_#000000] font-sans">
       {/* HEADER: Shows who we are talking to and the close button */}
-      <div className="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700 rounded-t-lg">
-        <span className="font-bold text-white">{friendUsername}</span>
+      <div className="flex justify-between items-center p-3 bg-zinc-800 border-b-4 border-black shrink-0">
+        <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">{friendUsername}</span>
         <button 
           onClick={onClose} 
-          className="text-gray-400 hover:text-white font-bold transition-colors"
+          className="text-red-500 hover:text-red-400 font-bold text-lg leading-none transition-colors"
         >
           ✖
         </button>
       </div>
 
       {/* MESSAGE LOG: flex-1 takes remaining space, overflow-y-auto makes it scrollable */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-4">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4 bg-zinc-900">
         
         {/* Loading and Error states */}
-        {isLoading && <span className="text-gray-400 text-sm text-center">Loading...</span>}
-        {error && <span className="text-red-500 text-sm text-center">{error}</span>}
+        {isLoading && <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest text-center border-2 border-zinc-800 p-2">Loading...</span>}
+        {error && <span className="text-red-400 text-xs font-bold uppercase tracking-widest text-center border-2 border-red-900 p-2">{error}</span>}
         
         {/* Render messages if not loading and no errors */}
         {!isLoading && !error && messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col bg-gray-800 p-3 rounded w-fit max-w-[90%]">
-            <div className="flex justify-between items-end gap-4 mb-1">
+          <div key={msg.id} className="flex flex-col bg-zinc-800 border-2 border-black p-2 shadow-[2px_2px_0_0_#000000] w-fit max-w-[90%]">
+            <div className="flex justify-between items-end gap-4 mb-1 border-b border-zinc-700 pb-1">
               
               {/* NOTE: We only have sender_id right now. We will need logic later to map ID to username. */}
-              <span className="text-blue-400 font-bold text-xs">{msg.sender_id}</span>
-              
+              <span className="text-amber-500 font-bold text-[10px] uppercase tracking-wider">{msg.sender_id}</span>              
               {/* Format the Go timestamp into HH:MM format */}
-              <span className="text-gray-500 text-[10px]">
+              <span className="text-zinc-500 font-bold text-[10px]">
                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               
             </div>
-            <span className="text-white text-sm">{msg.content}</span>
+            <span className="text-zinc-200 text-sm">{msg.content}</span>
           </div>
         ))}
       </div>
 
       {/* INPUT AREA: Matches old Chat.tsx logic */}
-      <div className="p-3 bg-gray-900 border-t border-gray-700 flex gap-2">
+     <div className="p-3 bg-zinc-800 border-t-4 border-black flex gap-2 shrink-0">
         <input
           type="text"
           value={currentMessage}
           onChange={(e) => setCurrentMessage(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          placeholder="Type a message..."
-          className="w-full flex-1 p-2 bg-gray-800 text-white rounded outline-none border border-gray-600 focus:border-blue-500 text-sm"
+          placeholder="MESSAGE..."
+          className="w-full flex-1 p-2 bg-zinc-900 text-white font-bold text-xs uppercase tracking-wider border-2 border-black outline-none focus:border-lime-700 transition-colors"
         />
         <button
           onClick={handleSendMessage}
-          className="bg-blue-500 hover:bg-blue-600 transition-colors px-4 py-2 rounded text-white font-bold text-sm"
+          className="bg-lime-700 text-white font-bold uppercase tracking-widest px-4 py-2 border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-lime-600 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all text-xs"
         >
           Send
         </button>
