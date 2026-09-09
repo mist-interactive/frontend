@@ -326,7 +326,7 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
                 {/* top row: username and status icon */}
                 <div className="flex justify-between items-center w-full mb-2">
                   <div className="flex items-center gap-2">
-                    {/* Taktinen pikseli-indikaattori: Vihreä jos online, harmaa jos offline */}
+                    {/* green pixel indicates if friend online */}
                     <div className={`w-2 h-2 border border-black shadow-[1px_1px_0_0_#000] ${
                       friend.is_online ? 'bg-lime-500' : 'bg-zinc-600'
                     }`}></div>
