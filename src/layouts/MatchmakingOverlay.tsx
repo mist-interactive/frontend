@@ -8,6 +8,7 @@ export default function MatchmakingOverlay() {
 
   // bring in the websocket data and send function
   const { lastMessage, sendMessage } = useWebSocket();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // listen and react to incoming websocket messages
@@ -15,7 +16,21 @@ export default function MatchmakingOverlay() {
     if (!lastMessage) return;
 
     switch (lastMessage.type) {
+ 
+      //error
+      case 'error':
+        setErrorMsg(lastMessage.payload.message);
+        // reset error after 4 sec
+        setTimeout(() => setErrorMsg(null), 4000);
+        break;
       
+        // match invite response 
+        case 'match_invite_response':
+        if (lastMessage.payload.status === 'declined' || lastMessage.payload.status === 'rejected') {
+          setErrorMsg("CHALLENGE DECLINED");
+          setTimeout(() => setErrorMsg(null), 4000);
+        }
+        break;
       // trigger the overlay when a challenge arrives
       case 'match_invite_recv':
         setChallenger(lastMessage.payload.username);
@@ -74,6 +89,17 @@ export default function MatchmakingOverlay() {
 
   // render the tactical pixel overlay
   return (
+
+    <>
+      {/* Error notification */}
+      {errorMsg && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-red-900 border-4 border-red-500 p-4 shadow-[8px_8px_0_0_#000000]">
+          <span className="text-red-100 font-bold uppercase tracking-widest text-lg">
+            {errorMsg}
+          </span>
+        </div>
+      )}
+
     <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 font-sans">
       
       {/* main panel */}
@@ -106,5 +132,6 @@ export default function MatchmakingOverlay() {
         
       </div>
     </div>
+    </>
   );
 }
