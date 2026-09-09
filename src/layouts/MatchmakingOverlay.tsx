@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
@@ -10,10 +10,12 @@ export default function MatchmakingOverlay() {
   const { lastMessage, sendMessage } = useWebSocket();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
+  const processedMessageRef = useRef<any>(null);
 
   // listen and react to incoming websocket messages
   useEffect(() => {
-    if (!lastMessage) return;
+    if (!lastMessage || lastMessage === processedMessageRef.current) return;
+    processedMessageRef.current = lastMessage;
 
     switch (lastMessage.type) {
  
