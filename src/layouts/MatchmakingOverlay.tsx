@@ -38,9 +38,7 @@ export default function MatchmakingOverlay() {
       
       // hide popup if the challenger cancels the invite
       case 'match_invite_cancel':
-        if (lastMessage.payload.username === challenger) {
-          setChallenger(null);
-        }
+        setChallenger((prev) => (prev === lastMessage.payload.username ? null : prev));
         break;
       
       // match initialized by backend, navigate to game view
@@ -49,14 +47,8 @@ export default function MatchmakingOverlay() {
         console.log("Match started with:", lastMessage.payload.opponent);
         navigate('/game');
         break;
-      
-      // if invite fails or expires, backend sends an error
-      case 'error':
-        console.error("Matchmaking error:", lastMessage.payload.message);
-        setChallenger(null);
-        break;
     }
-  }, [lastMessage, navigate, challenger]);
+  }, [lastMessage, navigate]);
 
   // handle accepting the challenge
   const handleAccept = () => {
@@ -85,7 +77,7 @@ export default function MatchmakingOverlay() {
   };
 
   // if no active challenge, do not render the component
-  if (!challenger) return null;
+  if (!challenger && !errorMsg) return null;
 
   // render the tactical pixel overlay
   return (
@@ -99,7 +91,7 @@ export default function MatchmakingOverlay() {
           </span>
         </div>
       )}
-
+    {challenger && (
     <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 font-sans">
       
       {/* main panel */}
@@ -132,6 +124,7 @@ export default function MatchmakingOverlay() {
         
       </div>
     </div>
+    )}
     </>
   );
 }
