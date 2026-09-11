@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 // declare global interface for typescript
 declare global {
@@ -13,6 +14,7 @@ export default function Game() {
 
   // useRef hook to access the iframe DOM element
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const location = useLocation();
 
   // useEffect hook to listen for godot engine readiness
   useEffect(() => {
@@ -23,8 +25,7 @@ export default function Game() {
         
         // get it from local storage
         const token = localStorage.getItem("token");
-        // mock match ID for testing purposes
-        const matchId = "test_match_123";
+        const matchId = location.state?.matchId || "missing_match_id";
 
         // ensure iframe, its window object, and the token exist before sending
         if (iframeRef.current && iframeRef.current.contentWindow && token) {
@@ -42,13 +43,12 @@ export default function Game() {
         }
       }
     };
-
     // attach the event listener to the global window
     window.addEventListener("message", handleMessage);
 
     // cleanup function to remove listener when component unmounts
     return () => window.removeEventListener("message", handleMessage);
-  }, []); // empty dependency array ensures this runs only once on mount
+  }, [location.state]);
 
   // handler that checks token and changes state
   const handlePlay = () => {
