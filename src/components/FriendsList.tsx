@@ -340,7 +340,7 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
                 value={newFriendName} 
                 onChange={(e) => setNewFriendName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddFriend()}
-                className="flex-1 bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-700 transition-colors text-white uppercase tracking-wider text-xs font-bold"
+                className="flex-1 bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-700 transition-colors text-white tracking-wider text-xs font-bold"
                 placeholder="USERNAME"
             />
             <button 
