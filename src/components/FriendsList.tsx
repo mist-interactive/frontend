@@ -11,6 +11,7 @@ interface Friend {
   avatar_url: string | null;
   status: 'pending' | 'accepted' | 'blocked';
   is_incoming: boolean;
+  is_online?: boolean;
 }
 
 // component state
@@ -27,7 +28,9 @@ type FriendsAction =
   | { type: 'FETCH_ERROR'; payload: string }
   | { type: 'ADD_FRIEND'; payload: Friend }
   | { type: 'UPDATE_STATUS'; payload: { id: number; status: 'accepted' | 'blocked' } }
-  | { type: 'REMOVE_FRIEND'; payload: number };;
+  | { type: 'REMOVE_FRIEND'; payload: number }
+  | { type: 'SET_INITIAL_PRESENCE'; payload: string[] }
+  | { type: 'UPDATE_PRESENCE'; payload: { username: string; is_online: boolean } };
 
 // React Reducer, takes list from api and sets it into a state
 function friendsReducer(state: FriendsState, action: FriendsAction): FriendsState {
@@ -60,6 +63,27 @@ function friendsReducer(state: FriendsState, action: FriendsAction): FriendsStat
         ...state,
         items: state.items.filter(friend => friend.friendship_id !== action.payload)
       };
+      case 'SET_INITIAL_PRESENCE':
+      return {
+        ...state,
+        // go through every friend, if name is in the payload array, is_online = true
+        items: state.items.map(friend => ({
+          ...friend,
+          is_online: action.payload.includes(friend.username)
+        }))
+      };
+
+    case 'UPDATE_PRESENCE':
+      return {
+        ...state,
+        // find the correct user and overwrite its boolean value
+        items: state.items.map(friend => 
+          friend.username === action.payload.username 
+            ? { ...friend, is_online: action.payload.is_online } 
+            : friend
+        )
+      };
+
 
     default:
       return state;
@@ -73,7 +97,7 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [newFriendName, setNewFriendName] = useState("");
-  const { sendMessage } = useWebSocket();
+  const { sendMessage, lastMessage } = useWebSocket();
   const [cooldowns, setCooldowns] = useState<string[]>([]);
 
   // init useReducer
@@ -109,6 +133,30 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
     fetchFriends();
     
   }, []);
+
+  // listen presence updates through ws
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    switch (lastMessage.type) {
+      case 'initial_presence':
+        dispatch({ 
+          type: 'SET_INITIAL_PRESENCE', 
+          payload: lastMessage.payload.online_users 
+        });
+        break;
+
+      case 'presence_update':
+        dispatch({ 
+          type: 'UPDATE_PRESENCE', 
+          payload: { 
+            username: lastMessage.payload.username, 
+            is_online: lastMessage.payload.online_status 
+          } 
+        });
+        break;
+    }
+  }, [lastMessage]);
 
   // handler for adding new friend (empty stub for now)
   // deny empty field
@@ -277,9 +325,15 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
                 
                 {/* top row: username and status icon */}
                 <div className="flex justify-between items-center w-full mb-2">
-                  <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">
-                    {friend.username}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {/* green pixel indicates if friend online */}
+                    <div className={`w-2 h-2 border border-black shadow-[1px_1px_0_0_#000] ${
+                      friend.is_online ? 'bg-lime-500' : 'bg-zinc-600'
+                    }`}></div>
+                    <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">
+                      {friend.username}
+                    </span>
+                  </div>
                   
                   {/* visual indicator of status */}
                   {friend.status === 'accepted' && <span className="text-lime-500 text-xl font-bold leading-none">+</span>}
@@ -330,9 +384,10 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
                       {/* the new challenge button */}
                       <button 
                         onClick={() => handleChallenge(friend.username)}
-                        disabled={cooldowns.includes(friend.username)}
+                        // button locked if cooldown or offline
+                        disabled={cooldowns.includes(friend.username) || !friend.is_online}
                         className={`font-bold uppercase text-xs tracking-widest transition-colors ${
-                          cooldowns.includes(friend.username)
+                          cooldowns.includes(friend.username) || !friend.is_online
                             ? 'text-zinc-600 cursor-not-allowed' 
                             : 'text-amber-500 hover:text-amber-400'
                         }`}
