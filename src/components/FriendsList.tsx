@@ -181,6 +181,14 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
           });
         }
         break;
+
+        // deleted friend
+        case 'friend_deleted':
+        dispatch({ 
+          type: 'REMOVE_FRIEND', 
+          payload: Number(lastMessage.payload.friendship_id) 
+        });
+        break;
       
     }
   }, [lastMessage]);
