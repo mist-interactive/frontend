@@ -137,6 +137,7 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
   // listen presence updates through ws
   useEffect(() => {
     if (!lastMessage) return;
+    
 
     switch (lastMessage.type) {
       case 'initial_presence':
@@ -155,6 +156,40 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
           } 
         });
         break;
+
+      // other user sent you friend request
+      case 'friend_request_recv':
+        dispatch({ type: 'ADD_FRIEND', payload: lastMessage.payload });
+        break;
+
+      // other user responded your request
+      case 'friend_request_response':
+        if (lastMessage.payload.status === 'accepted') {
+          // user pressed accept
+          dispatch({ 
+            type: 'UPDATE_STATUS', 
+            payload: { 
+              id: lastMessage.payload.friendship_id, 
+              status: 'accepted' 
+            } 
+          });
+        } else {
+          // user pressed decline 
+          dispatch({ 
+            type: 'REMOVE_FRIEND', 
+            payload: lastMessage.payload.friendship_id 
+          });
+        }
+        break;
+
+        // deleted friend
+        case 'friend_deleted':
+        dispatch({ 
+          type: 'REMOVE_FRIEND', 
+          payload: Number(lastMessage.payload.friendship_id) 
+        });
+        break;
+      
     }
   }, [lastMessage]);
 
