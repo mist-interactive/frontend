@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/apiFetch';
+import { useWebSocket } from '../contexts/WebSocketContext';
 
 /*
   INTERFACE: Matches the Go backend JSON output for Message exactly.
@@ -11,6 +12,7 @@ export interface Message {
   content: string;
   is_read: boolean;
   created_at: string;
+  sender_username?: string;
 }
 
 /*
@@ -22,6 +24,18 @@ interface ChatWindowProps {
   friendUsername: string;
   onClose: () => void;
 }
+// helper to decode the JWT to get our own user_id
+const getMyUserId = (): number => {
+  const token = localStorage.getItem("token");
+  if (!token) return -1;
+  try {
+    // JWT has 3 parts separated by dots. The payload is in the middle (index 1).
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.user_id;
+  } catch (e) {
+    return -1;
+  }
+};
 
 export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps) {
   // UI states
@@ -29,6 +43,9 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
   const [currentMessage, setCurrentMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { sendMessage, lastMessage } = useWebSocket();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const myUserId = getMyUserId();
 
   /*
     EFFECT: Fetches message history when the window mounts.
@@ -59,19 +76,62 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
     fetchMessages();
   }, [friendUsername]);
 
+  // listen for incoming websocket messages.
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    // check if it's a DM and if it belongs to this specific chat window
+    if (lastMessage.type === 'direct_message_recv' && lastMessage.payload.username === friendUsername) {
+      const incomingMsg: Message = {
+        id: lastMessage.payload.id,
+        sender_id: -1, // We don't have the numeric ID in the WS payload, but that's ok
+        recipient_id: -1, 
+        content: lastMessage.payload.content,
+        is_read: false,
+        created_at: lastMessage.payload.created_at,
+        sender_username: lastMessage.payload.username
+      };
+
+      // Append incoming message to the local list
+      setMessages((prevMessages) => [...prevMessages, incomingMsg]);
+    }
+  }, [lastMessage, friendUsername]);
+
   /*
     HANDLER: Sends a new message.
     Currently a stub. Because of our architecture, this will NOT be an HTTP POST.
     It will be a WebSocket transmission to avoid overhead and enable instant two-way delivery.
   */
-  const handleSendMessage = () => {
+ const handleSendMessage = () => {
     if (!currentMessage.trim()) return;
     
-    // TODO: Implement WebSocket send logic here.
-    // Example: ws.send(JSON.stringify({ action: "send_message", target: friendUsername, content: currentMessage }));
+    // Send the JSON payload exactly as the backend expects
+    sendMessage({
+      type: "direct_message_send",
+      payload: {
+        username: friendUsername,
+        content: currentMessage
+      }
+    });
 
-    setCurrentMessage("");
+    // Optimistic UI update: draw our own message immediately
+    const optimisticMsg: Message = {
+      id: Date.now(), // Temporary fake ID for React keys
+      sender_id: 0, // 0 represents "ME" right now
+      recipient_id: 0,
+      content: currentMessage,
+      is_read: true,
+      created_at: new Date().toISOString(),
+      sender_username: "ME"
+    };
+
+    setMessages((prevMessages) => [...prevMessages, optimisticMsg]);
+    setCurrentMessage(""); // Clear input field
   };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [messages]);
 
   return (
     /* 
@@ -90,28 +150,43 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
       </div>
 
       {/* MESSAGE LOG: flex-1 takes remaining space, overflow-y-auto makes it scrollable */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4 bg-zinc-900">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4 bg-zinc-900 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:bg-zinc-600">
         
-        {/* Loading and Error states */}
         {isLoading && <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest text-center border-2 border-zinc-800 p-2">Loading...</span>}
         {error && <span className="text-red-400 text-xs font-bold uppercase tracking-widest text-center border-2 border-red-900 p-2">{error}</span>}
         
-        {/* Render messages if not loading and no errors */}
-        {!isLoading && !error && messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col bg-zinc-800 border-2 border-black p-2 shadow-[2px_2px_0_0_#000000] w-fit max-w-[90%]">
-            <div className="flex justify-between items-end gap-4 mb-1 border-b border-zinc-700 pb-1">
+        {!isLoading && !error && messages.map((msg) => {
+          
+          // LOGIC: Determine if the message is sent by us
+          const isMe = msg.sender_id === myUserId || msg.sender_username === 'ME';
+
+          return (
+            // WRAPPER: Aligns the bubble to the left or right
+            <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
               
-              {/* NOTE: We only have sender_id right now. We will need logic later to map ID to username. */}
-              <span className="text-amber-500 font-bold text-[10px] uppercase tracking-wider">{msg.sender_id}</span>              
-              {/* Format the Go timestamp into HH:MM format */}
-              <span className="text-zinc-500 font-bold text-[10px]">
-                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              
+              {/* BUBBLE: Slightly different background color for our own messages */}
+              <div className={`flex flex-col border-2 border-black p-2 shadow-[2px_2px_0_0_#000000] w-fit max-w-[90%] ${
+                isMe ? 'bg-zinc-700' : 'bg-zinc-800'
+              }`}>
+                
+                <div className={`flex justify-between items-end gap-4 mb-1 border-b pb-1 ${isMe ? 'border-zinc-600' : 'border-zinc-700'}`}>
+                  
+                  {/* SENDER NAME: Show "ME" or the friend's username */}
+                  <span className={`font-bold text-[10px] uppercase tracking-wider ${isMe ? 'text-lime-500' : 'text-amber-500'}`}>
+                    {isMe ? 'ME' : friendUsername}
+                  </span>
+                  
+                  <span className="text-zinc-400 font-bold text-[10px]">
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  
+                </div>
+                <span className="text-zinc-100 text-sm">{msg.content}</span>
+              </div>
             </div>
-            <span className="text-zinc-200 text-sm">{msg.content}</span>
-          </div>
-        ))}
+          );
+        })}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* INPUT AREA: Matches old Chat.tsx logic */}

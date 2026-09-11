@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
@@ -8,14 +8,31 @@ export default function MatchmakingOverlay() {
 
   // bring in the websocket data and send function
   const { lastMessage, sendMessage } = useWebSocket();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
+  const processedMessageRef = useRef<any>(null);
 
   // listen and react to incoming websocket messages
   useEffect(() => {
-    if (!lastMessage) return;
+    if (!lastMessage || lastMessage === processedMessageRef.current) return;
+    processedMessageRef.current = lastMessage;
 
     switch (lastMessage.type) {
+ 
+      //error
+      case 'error':
+        setErrorMsg(lastMessage.payload.message);
+        // reset error after 4 sec
+        setTimeout(() => setErrorMsg(null), 4000);
+        break;
       
+        // match invite response 
+        case 'match_invite_response':
+        if (lastMessage.payload.status === 'declined' || lastMessage.payload.status === 'rejected') {
+          setErrorMsg("CHALLENGE DECLINED");
+          setTimeout(() => setErrorMsg(null), 4000);
+        }
+        break;
       // trigger the overlay when a challenge arrives
       case 'match_invite_recv':
         setChallenger(lastMessage.payload.username);
@@ -23,9 +40,7 @@ export default function MatchmakingOverlay() {
       
       // hide popup if the challenger cancels the invite
       case 'match_invite_cancel':
-        if (lastMessage.payload.username === challenger) {
-          setChallenger(null);
-        }
+        setChallenger((prev) => (prev === lastMessage.payload.username ? null : prev));
         break;
       
       // match initialized by backend, navigate to game view
@@ -34,14 +49,8 @@ export default function MatchmakingOverlay() {
         console.log("Match started with:", lastMessage.payload.opponent);
         navigate('/game');
         break;
-      
-      // if invite fails or expires, backend sends an error
-      case 'error':
-        console.error("Matchmaking error:", lastMessage.payload.message);
-        setChallenger(null);
-        break;
     }
-  }, [lastMessage, navigate, challenger]);
+  }, [lastMessage, navigate]);
 
   // handle accepting the challenge
   const handleAccept = () => {
@@ -70,10 +79,21 @@ export default function MatchmakingOverlay() {
   };
 
   // if no active challenge, do not render the component
-  if (!challenger) return null;
+  if (!challenger && !errorMsg) return null;
 
   // render the tactical pixel overlay
   return (
+
+    <>
+      {/* Error notification */}
+      {errorMsg && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-red-900 border-4 border-red-500 p-4 shadow-[8px_8px_0_0_#000000]">
+          <span className="text-red-100 font-bold uppercase tracking-widest text-lg">
+            {errorMsg}
+          </span>
+        </div>
+      )}
+    {challenger && (
     <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 font-sans">
       
       {/* main panel */}
@@ -106,5 +126,7 @@ export default function MatchmakingOverlay() {
         
       </div>
     </div>
+    )}
+    </>
   );
 }

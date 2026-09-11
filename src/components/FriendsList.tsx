@@ -73,8 +73,8 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [newFriendName, setNewFriendName] = useState("");
-
   const { sendMessage } = useWebSocket();
+  const [cooldowns, setCooldowns] = useState<string[]>([]);
 
   // init useReducer
   const [state, dispatch] = useReducer(friendsReducer, {
@@ -210,11 +210,19 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
 
   // handler for challenging a friend via websocket
   const handleChallenge = (username: string) => {
+    // block challenging if user on cooldown list
+    if (cooldowns.includes(username)) return;
     sendMessage({
       type: "match_invite_send",
       payload: { username: username }
     });
     console.log(`[WS] Challenge sent to ${username}`);
+    // add user to cooldown list
+    setCooldowns((prev) => [...prev, username]);
+    // how long user is in cooldown list
+    setTimeout(() => {
+      setCooldowns((prev) => prev.filter(name => name !== username));
+    }, 10000);
   };
 
 
@@ -322,9 +330,14 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
                       {/* the new challenge button */}
                       <button 
                         onClick={() => handleChallenge(friend.username)}
-                        className="text-amber-500 hover:text-amber-400 font-bold uppercase text-xs tracking-widest transition-colors"
+                        disabled={cooldowns.includes(friend.username)}
+                        className={`font-bold uppercase text-xs tracking-widest transition-colors ${
+                          cooldowns.includes(friend.username)
+                            ? 'text-zinc-600 cursor-not-allowed' 
+                            : 'text-amber-500 hover:text-amber-400'
+                        }`}
                       >
-                        Duel
+                        {cooldowns.includes(friend.username) ? 'WAIT' : 'DUEL'}
                       </button>
 
                       <button 
