@@ -140,7 +140,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
    <div className="w-80 h-96 border-black border-b-0 flex flex-col shadow-[8px_8px_0_0_#000000] font-sans">
       {/* HEADER: Shows who we are talking to and the close button */}
       <div className="flex justify-between items-center p-3 bg-zinc-800 border-b-4 border-black shrink-0">
-        <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">{friendUsername}</span>
+        <span className="font-bold text-zinc-100 tracking-widest text-sm">{friendUsername}</span>
         <button 
           onClick={onClose} 
           className="text-red-500 hover:text-red-400 font-bold text-lg leading-none transition-colors"
@@ -172,7 +172,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
                 <div className={`flex justify-between items-end gap-4 mb-1 border-b pb-1 ${isMe ? 'border-zinc-600' : 'border-zinc-700'}`}>
                   
                   {/* SENDER NAME: Show "ME" or the friend's username */}
-                  <span className={`font-bold text-[10px] uppercase tracking-wider ${isMe ? 'text-lime-500' : 'text-amber-500'}`}>
+                  <span className={`font-bold text-[10px] tracking-wider ${isMe ? 'text-lime-500' : 'text-amber-500'}`}>
                     {isMe ? 'ME' : friendUsername}
                   </span>
                   
@@ -197,7 +197,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
           onChange={(e) => setCurrentMessage(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
           placeholder="MESSAGE..."
-          className="w-full flex-1 p-2 bg-zinc-900 text-white font-bold text-xs uppercase tracking-wider border-2 border-black outline-none focus:border-lime-700 transition-colors"
+          className="w-full flex-1 p-2 bg-zinc-900 text-white font-bold text-xs tracking-wider border-2 border-black outline-none focus:border-lime-700 transition-colors"
         />
         <button
           onClick={handleSendMessage}

@@ -88,7 +88,7 @@ export default function Login() {
         
         {/* username field */}
         <div className="flex flex-col">
-            <label htmlFor="username" className="text-xs font-bold text-zinc-400 uppercase mb-2 tracking-wider">
+            <label htmlFor="username" className="text-xs font-bold text-zinc-400 mb-2 tracking-wider">
               Username:
             </label>
             <input 
@@ -102,7 +102,7 @@ export default function Login() {
 
         {/* password field */}
         <div className="flex flex-col">
-            <label htmlFor="password" className="text-xs font-bold text-zinc-400 uppercase mb-2 tracking-wider">
+            <label htmlFor="password" className="text-xs font-bold text-zinc-400 mb-2 tracking-wider">
               Password:
             </label>
             <input 

@@ -85,7 +85,7 @@ export default function Register() {
         
         {/* username field */}
         <div className="flex flex-col">
-            <label htmlFor="username" className="text-xs font-bold text-zinc-400 uppercase mb-2 tracking-wider">
+            <label htmlFor="username" className="text-xs font-bold text-zinc-400 mb-2 tracking-wider">
               Username
             </label>
             <input 
@@ -99,7 +99,7 @@ export default function Register() {
 
         {/* Email field */}
         <div className="flex flex-col">
-            <label htmlFor="email" className="text-xs font-bold text-zinc-400 uppercase mb-2 tracking-wider">
+            <label htmlFor="email" className="text-xs font-bold text-zinc-400 mb-2 tracking-wider">
               Email
             </label>
             <input 
