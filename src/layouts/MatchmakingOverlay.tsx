@@ -47,7 +47,7 @@ export default function MatchmakingOverlay() {
       case 'match_started':
         setChallenger(null);
         console.log("Match started with:", lastMessage.payload.opponent);
-        navigate('/game');
+        navigate('/game', { state: { matchId: lastMessage.payload.match_id } });
         break;
     }
   }, [lastMessage, navigate]);
