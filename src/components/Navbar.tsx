@@ -4,7 +4,10 @@ import { useWebSocket } from '../contexts/WebSocketContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { lastMessage } = useWebSocket();
+  const wsContext = useWebSocket();
+  
+  // Safely extract lastMessage only if the context exists
+  const lastMessage = wsContext ? wsContext.lastMessage : null;
 
   // track if the user has an ongoing match
   const [activeMatchId, setActiveMatchId] = useState<number | null>(null);
