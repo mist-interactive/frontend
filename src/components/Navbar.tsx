@@ -56,8 +56,6 @@ export default function Navbar() {
         <Link to="/" className="text-xl font-bold text-zinc-100 uppercase tracking-widest hover:text-lime-500 transition-colors mr-4">
           Memoir3167
         </Link>
-
-        <Link to="/game" className="text-sm font-bold text-zinc-400 uppercase tracking-widest hover:text-zinc-100 transition-colors">Game</Link>
         <Link to="/profile" className="text-sm font-bold text-zinc-400 uppercase tracking-widest hover:text-zinc-100 transition-colors">Profile</Link>
       </div>
 
