@@ -1,5 +1,6 @@
-import { useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { useWebSocket } from "../contexts/WebSocketContext";
 
 // declare global interface for typescript
 declare global {
@@ -11,7 +12,27 @@ declare global {
 export default function Game() {
   // access the router location to extract state
   const location = useLocation();
-  const matchId = location.state?.matchId;
+  
+  // initialize state from router if navigated via button
+  const [activeMatchId, setActiveMatchId] = useState<number | null>(location.state?.matchId || null);
+
+  // get websocket context safely
+  const wsContext = useWebSocket();
+  const lastMessage = wsContext ? wsContext.lastMessage : null;
+
+  // listen for websocket messages in case of direct url navigation
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    switch (lastMessage.type) {
+      case 'active_match':
+        setActiveMatchId(lastMessage.payload.match_id);
+        break;
+      case 'match_finished':
+        setActiveMatchId(null);
+        break;
+    }
+  }, [lastMessage]);
 
   // useref hook to access the iframe dom element
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -26,14 +47,14 @@ export default function Game() {
         // get it from local storage
         const token = localStorage.getItem("token");
 
-        // ensure iframe, its window object, the token, and matchid exist before sending
-        if (iframeRef.current && iframeRef.current.contentWindow && token && matchId) {
+        // ensure iframe, its window object, the token, and activematchid exist before sending
+        if (iframeRef.current && iframeRef.current.contentWindow && token && activeMatchId) {
           
           // construct the payload with a specific type identifier
           const payload = {
             type: "INIT_GAME",
             token: token,
-            match_id: matchId
+            match_id: activeMatchId
           };
 
           // send the payload to the iframe with postmessage
@@ -48,12 +69,12 @@ export default function Game() {
 
     // cleanup function to remove listener when component unmounts
     return () => window.removeEventListener("message", handleMessage);
-  }, [matchId]);
+  }, [activeMatchId]);
 
   return (
     <div className="absolute inset-0 bg-black flex justify-center items-center flex-col text-center">
-      {matchId ? (
-        /* game is rendered directly when matchid exists */
+      {activeMatchId ? (
+        /* game is rendered directly when activematchid exists */
         <iframe
           ref={iframeRef}
           src="/game/index.html"
