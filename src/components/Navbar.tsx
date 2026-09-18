@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // get websocket context safely
   const wsContext = useWebSocket();
@@ -78,7 +79,7 @@ export default function Navbar() {
       </div>
 
       {/* conditional reconnect button centered and overlapping */}
-      {isAuthenticated && activeMatchId && (
+      {isAuthenticated && activeMatchId && location.pathname !== '/game' && (
         <div className="absolute left-1/2 -translate-x-1/2 top-4">
           <button 
             onClick={handleReconnect}
