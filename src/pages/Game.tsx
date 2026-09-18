@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useRef, useEffect } from "react";
 import { useWebSocket } from "../contexts/WebSocketContext";
 
 // declare global interface for typescript
@@ -10,29 +9,8 @@ declare global {
 }
 
 export default function Game() {
-  // access the router location to extract state
-  const location = useLocation();
-  
-  // initialize state from router if navigated via button
-  const [activeMatchId, setActiveMatchId] = useState<number | null>(location.state?.matchId || null);
-
-  // get websocket context safely
-  const wsContext = useWebSocket();
-  const lastMessage = wsContext ? wsContext.lastMessage : null;
-
-  // listen for websocket messages in case of direct url navigation
-  useEffect(() => {
-    if (!lastMessage) return;
-
-    switch (lastMessage.type) {
-      case 'active_match':
-        setActiveMatchId(lastMessage.payload.match_id);
-        break;
-      case 'match_finished':
-        setActiveMatchId(null);
-        break;
-    }
-  }, [lastMessage]);
+  // get centralized match state directly from websocket context
+  const { activeMatchId } = useWebSocket();
 
   // useref hook to access the iframe dom element
   const iframeRef = useRef<HTMLIFrameElement>(null);

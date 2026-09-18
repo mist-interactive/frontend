@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
@@ -6,52 +5,18 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // get websocket context safely
-  const wsContext = useWebSocket();
-  const lastMessage = wsContext ? wsContext.lastMessage : null;
-  
- // initialize state from local storage so it survives page navigation
-  const [activeMatchId, setActiveMatchId] = useState<number | null>(() => {
-    const saved = localStorage.getItem("activeMatchId");
-    return saved ? parseInt(saved, 10) : null;
-  });
+  // get centralized match state directly from websocket context
+  // no null checks needed because provider always exists
+  const { activeMatchId } = useWebSocket();
 
   // check if user is logged in
   const isAuthenticated = localStorage.getItem("token") !== null;
 
-  // clean up lingering match state if user is not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      localStorage.removeItem("activeMatchId");
-      setActiveMatchId(null);
-    }
-  }, [isAuthenticated]);
-
-  // listen for websocket messages to handle reconnect logic
-  useEffect(() => {
-    if (!lastMessage) return;
-
-    switch (lastMessage.type) {
-      // backend found a match in progress or a new match just started
-      case 'active_match':
-      case 'match_started':
-        const matchId = lastMessage.payload.match_id;
-        setActiveMatchId(matchId);
-        localStorage.setItem("activeMatchId", matchId.toString());
-        break;
-
-      // match ended normally or was abandoned
-      case 'match_finished':
-        setActiveMatchId(null);
-        localStorage.removeItem("activeMatchId");
-        break;
-    }
-  }, [lastMessage]);
-
   // handle the reconnect button click
   const handleReconnect = () => {
     if (activeMatchId !== null) {
-      navigate('/game', { state: { matchId: activeMatchId } });
+      // route state is no longer needed because game.tsx reads from context
+      navigate('/game');
     }
   };
 
@@ -59,10 +24,9 @@ export default function Navbar() {
   const handleLogout = () => {
     // 1. remove the token from local storage
     localStorage.removeItem("token");
-    localStorage.removeItem("activeMatchId");
+    
     // 2. navigate to the home page or login page
     window.location.href = "/";
-    
   };
 
   return (
