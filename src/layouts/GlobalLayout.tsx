@@ -7,14 +7,14 @@ import { WebSocketProvider } from '../contexts/WebSocketContext';
 import MatchmakingOverlay from './MatchmakingOverlay';
 
 export default function GlobalLayout() {
-  // UseLocation forces to rerender the component always after URL changes
+  // uselocation forces to rerender the component always after url changes
   const location = useLocation();
   const isAuthenticated = localStorage.getItem("token") !== null;
   
   // to track open active chats
   const [activeChats, setActiveChats] = useState<string[]>([]);
 
-  // Opens new chat if its not already open
+  // opens new chat if its not already open
   const handleOpenChat = (username: string) => {
     if (!activeChats.includes(username)) {
       setActiveChats([...activeChats, username]);
@@ -26,54 +26,45 @@ export default function GlobalLayout() {
     setActiveChats(activeChats.filter(u => u !== username));
   };
 
-  // if not authenticated, show naked version of the page, no ws connection established
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto w-full h-full">
-          <Outlet />
-        </main>
-      </div>
-    );
-  }
-
-  //if auth use websocket
+  // unconditionally wrap the entire app in websocketprovider.
+  // the provider handles the authentication check internally.
   return (
     <WebSocketProvider>
-    <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
+      <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
 
-      {/* navbar is now at the very top and spans 100% width */}
-      <Navbar />
-      
-      {/* content wrapper for the remaining screen height. */}
-      <div className="flex-1 relative flex overflow-hidden">
+        {/* navbar is now at the very top and spans 100% width */}
+        <Navbar />
         
-        {/* The overlay sidebar */}
-        {isAuthenticated && <FriendsList onOpenChat={handleOpenChat} />}
+        {/* content wrapper for the remaining screen height. */}
+        <div className="flex-1 relative flex overflow-hidden">
+          
+          {/* the overlay sidebar */}
+          {isAuthenticated && <FriendsList onOpenChat={handleOpenChat} />}
 
-        {/* Temp test  */}
-        {isAuthenticated && (
-          <div className="fixed bottom-0 left-[21rem] flex items-end gap-4 z-40">
-            {activeChats.map((username) => (
-              <ChatWindow 
-                key={username}
-                friendUsername={username} 
-                onClose={() => handleCloseChat(username)} 
-              />
-            ))}
-          </div>
-        )}
-        
-        {/* Main page content */}
-        <main className="flex-1 overflow-y-auto w-full h-full">
-          <MatchmakingOverlay />
+          {/* temp test  */}
+          {isAuthenticated && (
+            <div className="fixed bottom-0 left-[21rem] flex items-end gap-4 z-40">
+              {activeChats.map((username) => (
+                <ChatWindow 
+                  key={username}
+                  friendUsername={username} 
+                  onClose={() => handleCloseChat(username)} 
+                />
+              ))}
+            </div>
+          )}
+          
+          {/* main page content */}
+          <main className="flex-1 overflow-y-auto w-full h-full">
+            
+            {/* only render matchmaking overlay if authenticated */}
+            {isAuthenticated && <MatchmakingOverlay />}
 
-          <Outlet />
-        </main>
+            <Outlet />
+          </main>
 
+        </div>
       </div>
-    </div>
     </WebSocketProvider>
   );
 }

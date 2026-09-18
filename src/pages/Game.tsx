@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useRef, useEffect } from "react";
+import { useWebSocket } from "../contexts/WebSocketContext";
 
 // declare global interface for typescript
 declare global {
@@ -9,14 +9,13 @@ declare global {
 }
 
 export default function Game() {
-  // useState variable which controls iframe rendering
-  const [isGameReady, setIsGameReady] = useState(false);
+  // get centralized match state directly from websocket context
+  const { activeMatchId } = useWebSocket();
 
-  // useRef hook to access the iframe DOM element
+  // useref hook to access the iframe dom element
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const location = useLocation();
 
-  // useEffect hook to listen for godot engine readiness
+  // useeffect hook to listen for godot engine readiness
   useEffect(() => {
     // handler for incoming messages from the window
     const handleMessage = (event: MessageEvent) => {
@@ -25,49 +24,35 @@ export default function Game() {
         
         // get it from local storage
         const token = localStorage.getItem("token");
-        const matchId = location.state?.matchId || "missing_match_id";
 
-        // ensure iframe, its window object, and the token exist before sending
-        if (iframeRef.current && iframeRef.current.contentWindow && token) {
+        // ensure iframe, its window object, the token, and activematchid exist before sending
+        if (iframeRef.current && iframeRef.current.contentWindow && token && activeMatchId) {
           
           // construct the payload with a specific type identifier
           const payload = {
             type: "INIT_GAME",
             token: token,
-            match_id: matchId
+            match_id: activeMatchId
           };
 
           // send the payload to the iframe with postmessage
-          // '*' allows any origin. !!!!!Change to specific domain in production!!!!
+          // '*' allows any origin. !!!!change to specific domain in production!!!!
           iframeRef.current.contentWindow.postMessage(payload, "*");
         }
       }
     };
+    
     // attach the event listener to the global window
     window.addEventListener("message", handleMessage);
 
     // cleanup function to remove listener when component unmounts
     return () => window.removeEventListener("message", handleMessage);
-  }, [location.state]);
-
-  // handler that checks token and changes state
-  const handlePlay = () => {
-    // get it from local storage
-    const token = localStorage.getItem("token");
-
-    // check if token exists
-    if (token) {
-      // update state to render iframe into DOM
-      setIsGameReady(true);
-    } else {
-      console.error("Test token couldnt be found.");
-    }
-  };
+  }, [activeMatchId]);
 
   return (
-    <div className="absolute inset-0 bg-black flex justify-center items-center flex-col">
-      {isGameReady ? (
-        /* phase 2 game is rendered */
+    <div className="absolute inset-0 bg-black flex justify-center items-center flex-col text-center">
+      {activeMatchId ? (
+        /* game is rendered directly when activematchid exists */
         <iframe
           ref={iframeRef}
           src="/game/index.html"
@@ -77,15 +62,14 @@ export default function Game() {
           title="Godot Game"
         />
       ) : (
-        /* phase 1 lobby */
+        /* fallback if user navigates here without an active match */
         <>
-          <h1 className="text-4xl font-bold mb-8 text-white">Game Lobby</h1>
-          <button
-            onClick={handlePlay}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded font-bold text-2xl transition-colors"
-          >
-            PLAY
-          </button>
+          <h1 className="text-4xl font-bold mb-8 text-white uppercase tracking-widest">
+            no active match
+          </h1>
+          <p className="text-zinc-400 font-bold uppercase tracking-widest">
+            challenge a friend to play.
+          </p>
         </>
       )}
     </div>
