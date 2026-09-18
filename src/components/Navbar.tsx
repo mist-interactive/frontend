@@ -4,30 +4,45 @@ import { useWebSocket } from '../contexts/WebSocketContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const wsContext = useWebSocket();
   
-  // Safely extract lastMessage only if the context exists
+  // get websocket context safely
+  const wsContext = useWebSocket();
   const lastMessage = wsContext ? wsContext.lastMessage : null;
-
-  // track if the user has an ongoing match
-  const [activeMatchId, setActiveMatchId] = useState<number | null>(null);
+  
+ // initialize state from local storage so it survives page navigation
+  const [activeMatchId, setActiveMatchId] = useState<number | null>(() => {
+    const saved = localStorage.getItem("activeMatchId");
+    return saved ? parseInt(saved, 10) : null;
+  });
 
   // check if user is logged in
   const isAuthenticated = localStorage.getItem("token") !== null;
+
+  // clean up lingering match state if user is not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      localStorage.removeItem("activeMatchId");
+      setActiveMatchId(null);
+    }
+  }, [isAuthenticated]);
 
   // listen for websocket messages to handle reconnect logic
   useEffect(() => {
     if (!lastMessage) return;
 
     switch (lastMessage.type) {
-      // backend found a match in progress
+      // backend found a match in progress or a new match just started
       case 'active_match':
-        setActiveMatchId(lastMessage.payload.match_id);
+      case 'match_started':
+        const matchId = lastMessage.payload.match_id;
+        setActiveMatchId(matchId);
+        localStorage.setItem("activeMatchId", matchId.toString());
         break;
 
       // match ended normally or was abandoned
       case 'match_finished':
         setActiveMatchId(null);
+        localStorage.removeItem("activeMatchId");
         break;
     }
   }, [lastMessage]);
@@ -43,6 +58,7 @@ export default function Navbar() {
   const handleLogout = () => {
     // 1. remove the token from local storage
     localStorage.removeItem("token");
+    localStorage.removeItem("activeMatchId");
     // 2. navigate to the home page or login page
     window.location.href = "/";
     
@@ -56,11 +72,13 @@ export default function Navbar() {
         <Link to="/" className="text-xl font-bold text-zinc-100 uppercase tracking-widest hover:text-lime-500 transition-colors mr-4">
           Memoir3167
         </Link>
+
+        <Link to="/game" className="text-sm font-bold text-zinc-400 uppercase tracking-widest hover:text-zinc-100 transition-colors">Game</Link>
         <Link to="/profile" className="text-sm font-bold text-zinc-400 uppercase tracking-widest hover:text-zinc-100 transition-colors">Profile</Link>
       </div>
 
       {/* conditional reconnect button centered and overlapping */}
-      {activeMatchId && (
+      {isAuthenticated && activeMatchId && (
         <div className="absolute left-1/2 -translate-x-1/2 top-4">
           <button 
             onClick={handleReconnect}
