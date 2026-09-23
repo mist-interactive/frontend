@@ -12,6 +12,8 @@ export default function GlobalLayout() {
   const location = useLocation();
   const isAuthenticated = localStorage.getItem("token") !== null;
   
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  
   // to track open active chats
   const [activeChats, setActiveChats] = useState<string[]>([]);
 
@@ -31,7 +33,7 @@ export default function GlobalLayout() {
   // the provider handles the authentication check internally.
   return (
     <WebSocketProvider>
-      <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
+      <div className="flex flex-col h-screen w-full bg-zinc-950 overflow-hidden">
 
         {/* navbar is now at the very top and spans 100% width */}
         <Navbar />
@@ -39,12 +41,20 @@ export default function GlobalLayout() {
         {/* content wrapper for the remaining screen height. */}
         <div className="flex-1 relative flex overflow-hidden">
           
-          {/* the overlay sidebar */}
-          {isAuthenticated && <FriendsList onOpenChat={handleOpenChat} />}
-
-          {/* temp test  */}
+          {/* the overlay sidebar docked between navbar and footer */}
           {isAuthenticated && (
-            <div className="fixed bottom-0 left-[21rem] flex items-end gap-4 z-40">
+            <FriendsList 
+              isOpen={isFriendsOpen}
+              onClose={() => setIsFriendsOpen(false)}
+              onOpenChat={handleOpenChat} 
+            />
+          )}
+
+          {/* chat popups docked above footer */}
+          {isAuthenticated && (
+            <div className={`fixed bottom-14 flex items-end gap-4 z-40 transition-all duration-300 ${
+              isFriendsOpen ? 'left-[21rem]' : 'left-4'
+            }`}>
               {activeChats.map((username) => (
                 <ChatWindow 
                   key={username}
@@ -56,20 +66,23 @@ export default function GlobalLayout() {
           )}
           
           {/* main page content */}
-          <main className="flex-1 overflow-y-auto w-full h-full flex flex-col justify-between">
-            
+          <main className="flex-1 overflow-y-auto w-full h-full">
             {/* only render matchmaking overlay if authenticated */}
             {isAuthenticated && <MatchmakingOverlay />}
 
-            <div className="flex-1">
-              <Outlet />
-            </div>
-
-            {/* render footer on non-game pages */}
-            {location.pathname !== '/game' && <Footer />}
+            <Outlet />
           </main>
 
         </div>
+
+        {/* unified tactical dock at screen bottom */}
+        {location.pathname !== '/game' && (
+          <Footer 
+            isAuthenticated={isAuthenticated}
+            isFriendsOpen={isFriendsOpen}
+            onToggleFriends={() => setIsFriendsOpen(!isFriendsOpen)}
+          />
+        )}
       </div>
     </WebSocketProvider>
   );
