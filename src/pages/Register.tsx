@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Register() {
   // useState variables
@@ -146,6 +146,18 @@ export default function Register() {
           >
             Submit
           </button>
+
+        {/* terms and privacy acceptance notice */}
+        <p className="text-[11px] text-zinc-400 text-center tracking-wider mt-2">
+          By signing up, you agree to our{' '}
+          <Link to="/terms" className="text-lime-400 font-bold underline hover:text-lime-300">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" className="text-lime-400 font-bold underline hover:text-lime-300">
+            Privacy Policy
+          </Link>.
+        </p>
       </form>
       </div>
     </div>

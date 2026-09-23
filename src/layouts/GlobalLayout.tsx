@@ -5,6 +5,7 @@ import ChatWindow from '../components/ChatWindow';
 import { useState } from 'react';
 import { WebSocketProvider } from '../contexts/WebSocketContext';
 import MatchmakingOverlay from './MatchmakingOverlay';
+import Footer from '../components/Footer';
 
 export default function GlobalLayout() {
   // uselocation forces to rerender the component always after url changes
@@ -55,12 +56,17 @@ export default function GlobalLayout() {
           )}
           
           {/* main page content */}
-          <main className="flex-1 overflow-y-auto w-full h-full">
+          <main className="flex-1 overflow-y-auto w-full h-full flex flex-col justify-between">
             
             {/* only render matchmaking overlay if authenticated */}
             {isAuthenticated && <MatchmakingOverlay />}
 
-            <Outlet />
+            <div className="flex-1">
+              <Outlet />
+            </div>
+
+            {/* render footer on non-game pages */}
+            {location.pathname !== '/game' && <Footer />}
           </main>
 
         </div>
