@@ -4,9 +4,30 @@ interface FooterProps {
   isAuthenticated?: boolean;
   isFriendsOpen?: boolean;
   onToggleFriends?: () => void;
+  isGame?: boolean;
 }
 
-export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends }: FooterProps) {
+export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends, isGame }: FooterProps) {
+  // in game view, only render standalone friends button if authenticated
+  if (isGame) {
+    if (!isAuthenticated || !onToggleFriends) {
+      return null;
+    }
+    return (
+      <button 
+        onClick={onToggleFriends}
+        className={`fixed bottom-3 left-3 z-50 h-10 px-4 flex items-center gap-2 border-4 border-black shadow-[4px_4px_0_0_#000000] font-bold uppercase tracking-wider text-xs transition-colors ${
+          isFriendsOpen 
+            ? 'bg-lime-700 text-white' 
+            : 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700'
+        }`}
+      >
+        <span>👥</span>
+        <span>Friends</span>
+      </button>
+    );
+  }
+
   return (
     // tactical footer dock with integrated friends toggle and legal links
     <footer className="w-full bg-zinc-900 border-t-4 border-black h-12 flex items-center justify-between text-zinc-400 font-sans shrink-0 z-30">

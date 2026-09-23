@@ -11,6 +11,7 @@ export default function GlobalLayout() {
   // uselocation forces to rerender the component always after url changes
   const location = useLocation();
   const isAuthenticated = localStorage.getItem("token") !== null;
+  const isGamePage = location.pathname === '/game';
   
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   
@@ -28,6 +29,10 @@ export default function GlobalLayout() {
   const handleCloseChat = (username: string) => {
     setActiveChats(activeChats.filter(u => u !== username));
   };
+
+  // precomputed positioning for chat popups
+  const chatBottom = isGamePage ? 'bottom-3' : 'bottom-14';
+  const chatLeft = isFriendsOpen ? 'left-[21rem]' : isGamePage ? 'left-36' : 'left-4';
 
   // unconditionally wrap the entire app in websocketprovider.
   // the provider handles the authentication check internally.
@@ -50,11 +55,9 @@ export default function GlobalLayout() {
             />
           )}
 
-          {/* chat popups docked above footer */}
+          {/* chat popups docked above footer or game canvas */}
           {isAuthenticated && (
-            <div className={`fixed bottom-14 flex items-end gap-4 z-40 transition-all duration-300 ${
-              isFriendsOpen ? 'left-[21rem]' : 'left-4'
-            }`}>
+            <div className={`fixed ${chatBottom} ${chatLeft} flex items-end gap-4 z-40 transition-all duration-300`}>
               {activeChats.map((username) => (
                 <ChatWindow 
                   key={username}
@@ -76,13 +79,12 @@ export default function GlobalLayout() {
         </div>
 
         {/* unified tactical dock at screen bottom */}
-        {location.pathname !== '/game' && (
-          <Footer 
-            isAuthenticated={isAuthenticated}
-            isFriendsOpen={isFriendsOpen}
-            onToggleFriends={() => setIsFriendsOpen(!isFriendsOpen)}
-          />
-        )}
+        <Footer 
+          isAuthenticated={isAuthenticated}
+          isFriendsOpen={isFriendsOpen}
+          onToggleFriends={() => setIsFriendsOpen(!isFriendsOpen)}
+          isGame={isGamePage}
+        />
       </div>
     </WebSocketProvider>
   );
