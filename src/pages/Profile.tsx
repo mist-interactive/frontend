@@ -20,6 +20,7 @@ export default function Profile() {
 
   // if param in URL, use it, otherwise assume its /me
   const [userData, setUserData] = useState<UserProfile | null>(null);
+  const [initialUserData, setInitialUserData] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // state for view/edit modes
@@ -31,6 +32,15 @@ export default function Profile() {
   // saving indicator for button state
   const [isSaving, setIsSaving] = useState(false);
 
+  // clean up blob preview url to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -39,9 +49,10 @@ export default function Profile() {
         
         if (response.ok) 
         {
-          // parse the JSON response and call setUserData()
+          // parse the JSON response and update user states
           const data = await response.json();
           setUserData(data);
+          setInitialUserData(data);
 
         } else {
           console.error("Failed to fetch profile data, status:", response.status);
@@ -69,12 +80,13 @@ export default function Profile() {
 
   // Updating profile
   const handleSave = async () => {
-    if (!userData)
-      {
-        return;
-      }
-      setIsSaving(true);
-      try {
+    if (!userData) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      let currentData = userData;
+
       // if user selected a new avatar, upload it to the avatar endpoint
       if (avatarFile) {
         const formData = new FormData();
@@ -94,39 +106,52 @@ export default function Profile() {
 
         // get profile with new avatar url from backend
         const updatedWithAvatar = await avatarResponse.json();
-        setUserData(updatedWithAvatar);
+        currentData = {
+          ...updatedWithAvatar,
+          email: userData.email,
+          bio: userData.bio,
+        };
+        setUserData(currentData);
         setAvatarFile(null);
         setPreviewUrl(null);
       }
 
-      // create a payload object with only the text fields.
-      const payload = {
-        email: userData.email,
-        bio: userData.bio
-      };
+      // dirty check: only send patch if text fields changed
+      const hasTextChanges = Boolean(
+        initialUserData &&
+        (currentData.email !== initialUserData.email || currentData.bio !== initialUserData.bio)
+      );
 
-      // execute request using your wrapper
-      const response = await apiFetch('/api/protected/profile', {
-        // define the correct HTTP method for updating data
-        method: 'PATCH',
-        // tell the server we are sending JSON data
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        // convert the javascript object into a JSON string for transport
-        body: JSON.stringify(payload)
-      });
+      if (hasTextChanges) {
+        // create a payload object with only the text fields
+        const payload = {
+          email: currentData.email,
+          bio: currentData.bio,
+        };
 
-      // if the server returns 200 OK (or 204 No Content)
-      if (response.ok) {
-        // update local state with saved profile from server
-        const updated = await response.json();
-        setUserData(updated);
-        // success, exit edit mode to return to view mode
-        setIsEditing(false);
-      } else {
-        console.error("Failed to update profile, status:", response.status);
+        // execute request using your wrapper
+        const response = await apiFetch('/api/protected/profile', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+          // update local state with saved profile from server
+          const updated = await response.json();
+          currentData = updated;
+          setUserData(updated);
+        } else {
+          console.error("Failed to update profile, status:", response.status);
+          return;
+        }
       }
+
+      // update initial snapshot and exit edit mode
+      setInitialUserData(currentData);
+      setIsEditing(false);
     } catch (error) {
       console.error("Network error during profile update:", error);
     } finally {
@@ -215,6 +240,10 @@ export default function Profile() {
                     alert("image too large (max 2mb)");
                     return;
                   }
+                  // revoke previous preview url if one was active
+                  if (previewUrl) {
+                    URL.revokeObjectURL(previewUrl);
+                  }
                   // store file for upload on save
                   setAvatarFile(file);
                   // generate local preview url
@@ -239,9 +268,15 @@ export default function Profile() {
           </button>
           <button 
               onClick={() => {
-                // discard pending avatar and cancel editing
+                // revert changes back to initial state
+                if (initialUserData) {
+                  setUserData(initialUserData);
+                }
+                if (previewUrl) {
+                  URL.revokeObjectURL(previewUrl);
+                  setPreviewUrl(null);
+                }
                 setAvatarFile(null);
-                setPreviewUrl(null);
                 setIsEditing(false);
               }}
               disabled={isSaving}
@@ -258,10 +293,6 @@ export default function Profile() {
         /* View mode */
         <div className="flex flex-col gap-4 max-w-md bg-zinc-800 border-4 border-black p-4 shadow-[4px_4px_0_0_#000000]">
           <p className="text-zinc-300 text-sm">
-            <strong className="text-zinc-100 uppercase tracking-wider block text-xs mb-1">Email</strong>
-            {userData.email}
-          </p>
-          <p className="text-zinc-300 text-sm">
             <strong className="text-zinc-100 uppercase tracking-wider block text-xs mb-1">Bio</strong>
             {userData.bio || <span className="text-zinc-500 italic">No bio provided</span>}
           </p>
@@ -270,7 +301,10 @@ export default function Profile() {
           {!username && (
             <div className="pt-2">
               <button 
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setInitialUserData(userData);
+                  setIsEditing(true);
+                }}
                 className="bg-zinc-700 text-white font-bold uppercase tracking-widest px-6 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-xs"
               >
                 Edit Profile
