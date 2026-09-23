@@ -24,6 +24,12 @@ export default function Profile() {
 
   // state for view/edit modes
   const [isEditing, setIsEditing] = useState(false);
+  // store selected file for upload
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  // local preview url for selected avatar
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // saving indicator for button state
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -67,7 +73,32 @@ export default function Profile() {
       {
         return;
       }
+      setIsSaving(true);
       try {
+      // if user selected a new avatar, upload it to the avatar endpoint
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append("avatar", avatarFile);
+
+        const avatarResponse = await apiFetch('/api/protected/avatar', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!avatarResponse.ok) {
+          const errorMsg = await avatarResponse.text();
+          console.error("failed to upload avatar, status:", avatarResponse.status, errorMsg);
+          alert(`failed to upload avatar: ${errorMsg || "unsupported format (use PNG, JPEG, or GIF)"}`);
+          return;
+        }
+
+        // get profile with new avatar url from backend
+        const updatedWithAvatar = await avatarResponse.json();
+        setUserData(updatedWithAvatar);
+        setAvatarFile(null);
+        setPreviewUrl(null);
+      }
+
       // create a payload object with only the text fields.
       const payload = {
         email: userData.email,
@@ -88,6 +119,9 @@ export default function Profile() {
 
       // if the server returns 200 OK (or 204 No Content)
       if (response.ok) {
+        // update local state with saved profile from server
+        const updated = await response.json();
+        setUserData(updated);
         // success, exit edit mode to return to view mode
         setIsEditing(false);
       } else {
@@ -95,35 +129,37 @@ export default function Profile() {
       }
     } catch (error) {
       console.error("Network error during profile update:", error);
+    } finally {
+      setIsSaving(false);
     }
   };
   
 
   // Render a loading screen while the fetch request is pending.
   if (isLoading) {
-    return <div className="p-4 bg-gray-900 text-white min-h-screen">Loading profile...</div>;
+    return <div className="p-8 bg-zinc-900 text-zinc-400 font-bold uppercase tracking-widest min-h-screen text-center">Loading profile...</div>;
   }
 
   // If loading finished but we have no data (e.g., 404 Not Found), show an error.
   if (!userData) {
-    return <div className="p-4 bg-gray-900 text-white min-h-screen">Profile not found.</div>;
+    return <div className="p-8 bg-zinc-900 text-red-400 font-bold uppercase tracking-widest min-h-screen text-center">Profile not found.</div>;
   }
 
   return (
-    <div className="p-4 bg-gray-900 text-white min-h-screen">
+    <div className="p-8 bg-zinc-900 text-white min-h-screen font-sans">
       
       {/* avatar and fallback */}
       <div className="mb-6">
-        {/* render img. if userData.avatarUrl is null, use some default*/}
+        {/* render preview when editing, otherwise avatarUrl or default fallback */}
         <img 
-        src={userData.avatarUrl || reactLogo} 
+        src={(isEditing && previewUrl) ? previewUrl : (userData.avatarUrl || reactLogo)} 
         // alt for error cases
         alt={`${userData.username} avatar`} 
-        className="w-24 h-24 rounded-full bg-gray-800 object-cover"
+        className="w-28 h-28 border-4 border-black shadow-[4px_4px_0_0_#000000] bg-zinc-800 object-cover"
         />
       </div>
 
-      <h1 className="text-3xl font-bold mb-4">{userData.username}'s Profile</h1>
+      <h1 className="text-3xl font-bold uppercase tracking-widest text-zinc-100 mb-6">{userData.username}'s Profile</h1>
 
       {isEditing ? (
         
@@ -131,69 +167,115 @@ export default function Profile() {
         <div className="flex flex-col gap-4 max-w-md">
         
         {/* Email */}
-        <label className="flex flex-col gap-1">
+        <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
             Email:
             <input 
             type="email" 
             value={userData.email} 
             onChange={(e) => handleInputChange('email', e.target.value)} 
-            className="p-2 bg-gray-800 text-white rounded outline-none border border-gray-600 focus:border-blue-500"
+            className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-700 transition-colors text-white tracking-wider text-sm font-bold"
             />
         </label>
 
         {/* Bio */}
-         <label className="flex flex-col gap-1">
+         <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
             Bio:
-            <input 
-            type="bio" 
+            <textarea 
             value={userData.bio} 
             onChange={(e) => handleInputChange('bio', e.target.value)} 
-            className="p-2 bg-gray-800 text-white rounded outline-none border border-gray-600 focus:border-blue-500"
+            rows={3}
+            className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-700 transition-colors text-white tracking-wider text-sm font-bold resize-none"
             />
         </label>
 
         {/* Avatar */}
-        <label className="flex flex-col gap-1">
-            Avatar:
+        <div className="flex flex-col gap-1">
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-300">Avatar:</span>
+            <label 
+              htmlFor="avatar-upload"
+              className="cursor-pointer bg-zinc-700 text-white font-bold uppercase tracking-widest px-4 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-center text-xs truncate"
+            >
+              {avatarFile ? avatarFile.name : "Choose New Avatar"}
+            </label>
             <input 
+            id="avatar-upload"
             type="file" 
-            accept="image/*"
+            accept="image/png, image/jpeg, image/gif"
             onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                // Generate local temp URL for testing
-                const tempUrl = URL.createObjectURL(file);
-                handleInputChange('avatarUrl', tempUrl);
+                  // check allowed image formats
+                  const allowedTypes = ['image/png', 'image/jpeg', 'image/gif'];
+                  if (!allowedTypes.includes(file.type)) {
+                    alert("unsupported file format (please choose PNG, JPEG, or GIF)");
+                    return;
+                  }
+                  // max 2mb file size limit
+                  if (file.size > 2 * 1024 * 1024) {
+                    alert("image too large (max 2mb)");
+                    return;
+                  }
+                  // store file for upload on save
+                  setAvatarFile(file);
+                  // generate local preview url
+                  setPreviewUrl(URL.createObjectURL(file));
                 }
             }}
-            className="p-2 bg-gray-800 text-white rounded border border-gray-600"
+            className="hidden"
             />
-        </label>
+            {/* helper text describing formats and max size */}
+            <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
+              PNG, JPEG or GIF • Max 2 MB
+            </p>
+        </div>
 
-        <button 
-            onClick={handleSave}
-            className="bg-blue-500 hover:bg-blue-600 transition-colors px-4 py-2 mt-4 font-bold rounded"
-        >
-            Save Profile
-        </button>
+        <div className="flex gap-4 mt-2">
+          <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="bg-lime-700 text-white font-bold uppercase tracking-widest px-6 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs"
+          >
+              {isSaving ? "Saving..." : "Save Profile"}
+          </button>
+          <button 
+              onClick={() => {
+                // discard pending avatar and cancel editing
+                setAvatarFile(null);
+                setPreviewUrl(null);
+                setIsEditing(false);
+              }}
+              disabled={isSaving}
+              className="bg-zinc-700 text-white font-bold uppercase tracking-widest px-6 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs"
+          >
+              Cancel
+          </button>
+        </div>
         </div>
 
 
       ) : (
 
         /* View mode */
-        <div>
-          <p><strong>Email:</strong> {userData.email}</p>
-          <p><strong>Bio:</strong> {userData.bio}</p>
+        <div className="flex flex-col gap-4 max-w-md bg-zinc-800 border-4 border-black p-4 shadow-[4px_4px_0_0_#000000]">
+          <p className="text-zinc-300 text-sm">
+            <strong className="text-zinc-100 uppercase tracking-wider block text-xs mb-1">Email</strong>
+            {userData.email}
+          </p>
+          <p className="text-zinc-300 text-sm">
+            <strong className="text-zinc-100 uppercase tracking-wider block text-xs mb-1">Bio</strong>
+            {userData.bio || <span className="text-zinc-500 italic">No bio provided</span>}
+          </p>
           
           {/* edit button only showed if profile/me. (!username checks the url doesnt contain any other username) */}
           {!username && (
-            <button 
-              onClick={() => setIsEditing(true)}
-              className="bg-gray-700 px-4 py-2 mt-4"
-            >
-              Edit Profile
-            </button>
+            <div className="pt-2">
+              <button 
+                onClick={() => setIsEditing(true)}
+                className="bg-zinc-700 text-white font-bold uppercase tracking-widest px-6 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-xs"
+              >
+                Edit Profile
+              </button>
+            </div>
           )}
         </div>
 
