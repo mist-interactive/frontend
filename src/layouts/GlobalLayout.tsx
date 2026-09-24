@@ -5,11 +5,15 @@ import ChatWindow from '../components/ChatWindow';
 import { useState } from 'react';
 import { WebSocketProvider } from '../contexts/WebSocketContext';
 import MatchmakingOverlay from './MatchmakingOverlay';
+import Footer from '../components/Footer';
 
 export default function GlobalLayout() {
   // uselocation forces to rerender the component always after url changes
   const location = useLocation();
   const isAuthenticated = localStorage.getItem("token") !== null;
+  const isGamePage = location.pathname === '/game';
+  
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   
   // to track open active chats
   const [activeChats, setActiveChats] = useState<string[]>([]);
@@ -26,11 +30,15 @@ export default function GlobalLayout() {
     setActiveChats(activeChats.filter(u => u !== username));
   };
 
+  // precomputed positioning for chat popups
+  const chatBottom = isGamePage ? 'bottom-3' : 'bottom-14';
+  const chatLeft = isFriendsOpen ? 'left-[21rem]' : isGamePage ? 'left-36' : 'left-4';
+
   // unconditionally wrap the entire app in websocketprovider.
   // the provider handles the authentication check internally.
   return (
     <WebSocketProvider>
-      <div className="flex flex-col h-screen w-full bg-zinc-100 overflow-hidden">
+      <div className="flex flex-col h-screen w-full bg-zinc-950 overflow-hidden">
 
         {/* navbar is now at the very top and spans 100% width */}
         <Navbar />
@@ -38,12 +46,18 @@ export default function GlobalLayout() {
         {/* content wrapper for the remaining screen height. */}
         <div className="flex-1 relative flex overflow-hidden">
           
-          {/* the overlay sidebar */}
-          {isAuthenticated && <FriendsList onOpenChat={handleOpenChat} />}
-
-          {/* temp test  */}
+          {/* the overlay sidebar docked between navbar and footer */}
           {isAuthenticated && (
-            <div className="fixed bottom-0 left-[21rem] flex items-end gap-4 z-40">
+            <FriendsList 
+              isOpen={isFriendsOpen}
+              onClose={() => setIsFriendsOpen(false)}
+              onOpenChat={handleOpenChat} 
+            />
+          )}
+
+          {/* chat popups docked above footer or game canvas */}
+          {isAuthenticated && (
+            <div className={`fixed ${chatBottom} ${chatLeft} flex items-end gap-4 z-40 transition-all duration-300`}>
               {activeChats.map((username) => (
                 <ChatWindow 
                   key={username}
@@ -56,7 +70,6 @@ export default function GlobalLayout() {
           
           {/* main page content */}
           <main className="flex-1 overflow-y-auto w-full h-full">
-            
             {/* only render matchmaking overlay if authenticated */}
             {isAuthenticated && <MatchmakingOverlay />}
 
@@ -64,6 +77,14 @@ export default function GlobalLayout() {
           </main>
 
         </div>
+
+        {/* unified tactical dock at screen bottom */}
+        <Footer 
+          isAuthenticated={isAuthenticated}
+          isFriendsOpen={isFriendsOpen}
+          onToggleFriends={() => setIsFriendsOpen(!isFriendsOpen)}
+          isGame={isGamePage}
+        />
       </div>
     </WebSocketProvider>
   );

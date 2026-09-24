@@ -91,11 +91,12 @@ function friendsReducer(state: FriendsState, action: FriendsAction): FriendsStat
 }
 interface FriendsListProps {
   onOpenChat?: (username: string) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function FriendsList({ onOpenChat }: FriendsListProps) {
+export default function FriendsList({ onOpenChat, isOpen, onClose }: FriendsListProps) {
 
-  const [isExpanded, setIsExpanded] = useState(false);
   const [newFriendName, setNewFriendName] = useState("");
   const { sendMessage, lastMessage } = useWebSocket();
   const [cooldowns, setCooldowns] = useState<string[]>([]);
@@ -310,24 +311,26 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
 
 
   return (
-    // main tactical wrapper. dynamic width based on state. hard borders.
-    <div className={`absolute left-0 bottom-0 bg-zinc-900 border-black z-50 transition-all duration-300 overflow-hidden font-sans flex flex-col ${
-      isExpanded 
-        ? 'w-80 h-full border-r-4 border-t-0'
-        : 'w-16 h-16 border-r-4 border-t-4'
+    // main tactical drawer docked between navbar and footer
+    <div className={`absolute left-0 top-0 bottom-0 w-80 bg-zinc-900 border-r-4 border-black z-50 transition-transform duration-300 overflow-hidden font-sans flex flex-col shadow-[8px_0_0_0_#000000] ${
+      isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
     }`}>
 
-      {/* toggle button - acts as the header */}
-      <button 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full h-16 shrink-0 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 transition-colors border-b-4 border-black text-xl font-bold uppercase tracking-widest text-zinc-100"
-      >
-        {isExpanded ? "FRIENDS" : "👥"}
-      </button>
+      {/* drawer header with title and close button */}
+      <div className="w-full h-14 shrink-0 flex items-center justify-between px-4 bg-zinc-800 border-b-4 border-black text-sm font-bold uppercase tracking-widest text-zinc-100">
+        <span className="flex items-center gap-2">
+          <span>👥</span> Friends
+        </span>
+        <button 
+          onClick={onClose}
+          className="text-zinc-400 hover:text-white px-2 py-1 text-sm font-bold active:scale-90 transition-transform"
+        >
+          ✕
+        </button>
+      </div>
 
       {/* content area */}
-      {isExpanded && (
-        <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-6">
+      <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-6">
           
           {/* error/loading indicators wrapped in tactical alert boxes */}
           {state.isLoading && <div className="bg-zinc-800 border-4 border-black p-2 text-xs font-bold uppercase text-zinc-400 text-center">Loading Data...</div>}
@@ -443,7 +446,6 @@ export default function FriendsList({ onOpenChat }: FriendsListProps) {
             ))}
           </ul>
         </div>
-      )}
     </div>
   );
 }
