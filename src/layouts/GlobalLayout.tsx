@@ -69,7 +69,7 @@ export default function GlobalLayout() {
           )}
           
           {/* main page content */}
-          <main className="flex-1 overflow-y-auto w-full h-full">
+          <main className={`flex-1 min-w-0 overflow-y-auto h-full transition-[margin] duration-300 ${(!isGamePage && isFriendsOpen) ? 'lg:ml-80' : 'ml-0'}`}>
             {/* only render matchmaking overlay if authenticated */}
             {isAuthenticated && <MatchmakingOverlay />}
 
