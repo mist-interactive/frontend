@@ -791,7 +791,7 @@ export default function Profile() {
               </span>
             </div>
             <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:inline">
-              Steam-Style Social Feed
+              Social Feed
             </span>
           </div>
 
