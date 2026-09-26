@@ -1,5 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { clearAuth } from '../utils/auth';
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -22,8 +23,8 @@ export default function Navbar() {
 
   // define the logout action
   const handleLogout = () => {
-    // 1. remove the token from local storage
-    localStorage.removeItem("token");
+    // 1. remove auth state from local storage
+    clearAuth();
     
     // 2. navigate to the home page or login page
     window.location.href = "/";

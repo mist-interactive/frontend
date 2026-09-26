@@ -1,4 +1,5 @@
 import { HttpStatus } from '../utils/httpStatus';
+import { setAuth, clearAuth } from './auth';
 
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   // get token
@@ -40,7 +41,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
       const newToken: string = data.token;
       
       // save to local storage
-      localStorage.setItem("token", newToken);
+      setAuth(newToken);
 
       // update the original variable and the headers for the retry
       token = newToken;
@@ -59,8 +60,8 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
       throw new Error("Session expired");
     }
   } catch (error) {
-    // clean token, and redirect to login page
-    localStorage.removeItem("token");
+    // clean auth state, and redirect to login page
+    clearAuth();
     window.location.href = "/login";
     
     // return the old response
