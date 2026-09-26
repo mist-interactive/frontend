@@ -79,11 +79,50 @@ export function getAuthUser(): { userId: number; username: string } | null {
   }
 }
 
-// clear all items from local storage on logout
+// keys owned by the authentication system
+const AUTH_STORAGE_KEYS = ['token', 'user_id', 'username'] as const;
+
+// clear auth credentials from local storage on logout or session expiration
 export function clearAuth(): void {
   try {
-    localStorage.clear();
+    AUTH_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
   } catch (error) {
     console.error('Failed to clear auth:', error);
   }
 }
+
+// silent token renewal using HttpOnly session cookie
+export async function renewToken(): Promise<string | null> {
+  try {
+    const res = await fetch('/api/renew', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        setAuth(data.token);
+        return data.token;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to renew token:', error);
+  }
+  return null;
+}
+
+// retrieves a valid, non-expired token; automatically renews if expired or expiring within 30s
+export async function getValidToken(): Promise<string | null> {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return renewToken();
+  }
+
+  const claims = parseJwtSafe(token);
+  const nowSec = Math.floor(Date.now() / 1000);
+  // if claims missing or expired / expiring within 30 seconds, renew
+  if (!claims?.exp || claims.exp <= nowSec + 30) {
+    const renewed = await renewToken();
+    return renewed || token;
+  }
+
+  return token;
+}
+

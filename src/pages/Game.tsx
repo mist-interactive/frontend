@@ -1,5 +1,7 @@
 import { useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useWebSocket } from "../contexts/WebSocketContext";
+import { getValidToken } from "../utils/auth";
 
 // declare global interface for typescript
 declare global {
@@ -9,8 +11,10 @@ declare global {
 }
 
 export default function Game() {
-  // get centralized match state directly from websocket context
-  const { activeMatchId } = useWebSocket();
+  const location = useLocation();
+  // get centralized match state from websocket context, with fallback to router location state
+  const { activeMatchId: wsMatchId } = useWebSocket();
+  const activeMatchId = wsMatchId ?? location.state?.matchId ?? null;
 
   // useref hook to access the iframe dom element
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -18,12 +22,12 @@ export default function Game() {
   // useeffect hook to listen for godot engine readiness
   useEffect(() => {
     // handler for incoming messages from the window
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       // check if message is from godot declaring it is ready
       if (event.data && event.data.type === 'GODOT_READY') {
         
-        // get it from local storage
-        const token = localStorage.getItem("token");
+        // retrieve a guaranteed valid (auto-renewed if expired) JWT token
+        const token = await getValidToken();
 
         // ensure iframe, its window object, the token, and activematchid exist before sending
         if (iframeRef.current && iframeRef.current.contentWindow && token && activeMatchId) {
@@ -38,6 +42,8 @@ export default function Game() {
           // send the payload to the iframe with postmessage
           // '*' allows any origin. !!!!change to specific domain in production!!!!
           iframeRef.current.contentWindow.postMessage(payload, "*");
+        } else if (!token) {
+          console.error("Game auth initialization aborted: could not obtain a valid token");
         }
       }
     };
