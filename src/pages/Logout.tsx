@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { clearAuth } from '../utils/auth';
 
 export default function Navbar() {
 
@@ -7,12 +8,11 @@ export default function Navbar() {
 
   // define the logout action
   const handleLogout = () => {
-    // 1. remove the token from local storage
-    localStorage.removeItem("token");
+    // 1. clear all auth data from local storage
+    clearAuth();
     
     // 2. force hard refresh
     window.location.href = "/";
-    
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { setAuth } from "../utils/auth";
 
 export default function Login() {
   // useState variables
@@ -56,8 +57,8 @@ export default function Login() {
 
       const jwtData = await renewResponse.json();
       
-      // phase 3: save token to local storage for the iframe
-      localStorage.setItem("token", jwtData.token);
+      // phase 3: save token and user claims to local storage
+      setAuth(jwtData.token);
 
       // phase 4: redirect user 
       window.location.href = "/";  

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/apiFetch';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { getAuthUser } from '../utils/auth';
 
 /*
   INTERFACE: Matches the Go backend JSON output for Message exactly.
@@ -24,18 +25,6 @@ interface ChatWindowProps {
   friendUsername: string;
   onClose: () => void;
 }
-// helper to decode the JWT to get our own user_id
-const getMyUserId = (): number => {
-  const token = localStorage.getItem("token");
-  if (!token) return -1;
-  try {
-    // JWT has 3 parts separated by dots. The payload is in the middle (index 1).
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.user_id;
-  } catch (e) {
-    return -1;
-  }
-};
 
 export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps) {
   // UI states
@@ -45,7 +34,7 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
   const [error, setError] = useState<string | null>(null);
   const { sendMessage, lastMessage } = useWebSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const myUserId = getMyUserId();
+  const myUserId = getAuthUser()?.userId ?? -1;
 
   /*
     EFFECT: Fetches message history when the window mounts.
