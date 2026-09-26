@@ -192,6 +192,9 @@ export default function Profile() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [bioError, setBioError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
 
   // clean up blob preview url to prevent memory leaks
   useEffect(() => {
@@ -302,6 +305,24 @@ export default function Profile() {
   const handleInputChange = (field: keyof UserProfile, value: string) => {
     if (userData) {
       setUserData({ ...userData, [field]: value });
+
+      if (field === 'bio') {
+        if (value.length > 500) {
+          setBioError("Bio cannot exceed 500 characters");
+        } else {
+          setBioError(null);
+        }
+      }
+
+      if (field === 'email') {
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          setEmailError("Please enter a valid email address");
+        } else if (value.length > 255) {
+          setEmailError("Email cannot exceed 255 characters");
+        } else {
+          setEmailError(null);
+        }
+      }
     }
   };
 
@@ -395,6 +416,22 @@ export default function Profile() {
     if (!userData) {
       return;
     }
+
+    // validate bio and email before sending
+    if (userData.bio && userData.bio.length > 500) {
+      setBioError("Bio cannot exceed 500 characters");
+      return;
+    }
+    if (userData.email && userData.email.length > 255) {
+      setEmailError("Email cannot exceed 255 characters");
+      return;
+    }
+    if (userData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    setEditGeneralError(null);
     setIsSaving(true);
     try {
       let currentData = userData;
@@ -412,7 +449,7 @@ export default function Profile() {
         if (!avatarResponse.ok) {
           const errorMsg = await avatarResponse.text();
           console.error("failed to upload avatar, status:", avatarResponse.status, errorMsg);
-          alert(`failed to upload avatar: ${errorMsg || "unsupported format (use PNG, JPEG, or GIF)"}`);
+          setEditGeneralError(`Failed to upload avatar: ${errorMsg || "unsupported format (use PNG, JPEG, or GIF)"}`);
           return;
         }
 
@@ -452,15 +489,21 @@ export default function Profile() {
           currentData = updated;
           setUserData(updated);
         } else {
-          console.error("Failed to update profile, status:", response.status);
+          const errText = await response.text();
+          console.error("Failed to update profile, status:", response.status, errText);
+          setEditGeneralError(errText || "Failed to update profile");
           return;
         }
       }
 
       setInitialUserData(currentData);
+      setBioError(null);
+      setEmailError(null);
+      setEditGeneralError(null);
       setIsEditing(false);
     } catch (error) {
       console.error("Network error during profile update:", error);
+      setEditGeneralError("Network error during profile update");
     } finally {
       setIsSaving(false);
     }
@@ -651,30 +694,53 @@ export default function Profile() {
 
               {/* Form text fields */}
               <div className="flex-1 min-w-0 flex flex-col gap-4">
+                {editGeneralError && (
+                  <div className="p-3 bg-rose-950/80 border-2 border-rose-600 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                    {editGeneralError}
+                  </div>
+                )}
+
                 <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
                   Email:
                   <input
                     type="email"
+                    maxLength={255}
                     value={userData.email || ""}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold w-full"
+                    className={`bg-zinc-900 border-4 ${emailError ? "border-rose-500" : "border-black"} p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold w-full`}
                   />
+                  {emailError && (
+                    <span className="text-[10px] text-rose-400 font-bold tracking-wider mt-0.5">
+                      {emailError}
+                    </span>
+                  )}
                 </label>
 
                 <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
                   Bio:
                   <textarea
+                    maxLength={500}
                     value={userData.bio || ""}
                     onChange={(e) => handleInputChange('bio', e.target.value)}
-                    rows={3}
-                    className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold resize-none w-full break-words [overflow-wrap:anywhere]"
+                    rows={4}
+                    className={`bg-zinc-900 border-4 ${bioError ? "border-rose-500" : "border-black"} p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold resize-none w-full break-words [overflow-wrap:anywhere]`}
                   />
+                  <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider mt-0.5">
+                    {bioError ? (
+                      <span className="text-rose-400">{bioError}</span>
+                    ) : (
+                      <span className="text-zinc-500">Maximum 500 characters</span>
+                    )}
+                    <span className={(userData.bio?.length || 0) > 500 ? "text-rose-400 font-black" : (userData.bio?.length || 0) > 450 ? "text-amber-400" : "text-zinc-400"}>
+                      {(userData.bio?.length || 0)} / 500
+                    </span>
+                  </div>
                 </label>
 
                 <div className="flex flex-wrap gap-4 mt-2">
                   <button
                     onClick={handleSave}
-                    disabled={isSaving}
+                    disabled={isSaving || Boolean(bioError) || Boolean(emailError) || (Boolean(userData.bio) && userData.bio!.length > 500)}
                     className="px-6 py-2.5 bg-lime-600 text-black font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs w-auto"
                   >
                     {isSaving ? "Saving..." : "Save Profile"}
@@ -689,6 +755,9 @@ export default function Profile() {
                         setPreviewUrl(null);
                       }
                       setAvatarFile(null);
+                      setBioError(null);
+                      setEmailError(null);
+                      setEditGeneralError(null);
                       setIsEditing(false);
                     }}
                     disabled={isSaving}
@@ -729,6 +798,9 @@ export default function Profile() {
                     <button
                       onClick={() => {
                         setInitialUserData(userData);
+                        setBioError(null);
+                        setEmailError(null);
+                        setEditGeneralError(null);
                         setIsEditing(true);
                       }}
                       className="px-4 py-2 bg-zinc-700 text-white font-bold uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] hover:bg-zinc-600 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs shrink-0 w-auto"
