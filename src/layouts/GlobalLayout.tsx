@@ -15,19 +15,44 @@ export default function GlobalLayout() {
   
   const [isFriendsOpen, setIsFriendsOpen] = useState(false);
   
-  // to track open active chats
+  // to track open active chats (max 4 FIFO)
   const [activeChats, setActiveChats] = useState<string[]>([]);
+  // to track which open chats are minimized
+  const [minimizedChats, setMinimizedChats] = useState<Record<string, boolean>>({});
 
-  // opens new chat if its not already open
+  // opens new chat if its not already open; enforces max 4 active chats FIFO
   const handleOpenChat = (username: string) => {
-    if (!activeChats.includes(username)) {
-      setActiveChats([...activeChats, username]);
-    }
+    // un-minimize if already open
+    setMinimizedChats(prev => ({ ...prev, [username]: false }));
+
+    setActiveChats(prev => {
+      if (prev.includes(username)) {
+        return prev;
+      }
+      // FIFO: if already 4 open windows, drop the oldest (first element) and append new
+      if (prev.length >= 4) {
+        return [...prev.slice(1), username];
+      }
+      return [...prev, username];
+    });
   };
 
-  // closes the chat (deletes username from the array)
+  // closes the chat (deletes username from active array and minimized state)
   const handleCloseChat = (username: string) => {
-    setActiveChats(activeChats.filter(u => u !== username));
+    setActiveChats(prev => prev.filter(u => u !== username));
+    setMinimizedChats(prev => {
+      const next = { ...prev };
+      delete next[username];
+      return next;
+    });
+  };
+
+  // toggle minimize state for a specific chat window
+  const handleToggleMinimize = (username: string) => {
+    setMinimizedChats(prev => ({
+      ...prev,
+      [username]: !prev[username],
+    }));
   };
 
   // precomputed positioning for chat popups
@@ -57,12 +82,14 @@ export default function GlobalLayout() {
 
           {/* chat popups docked above footer or game canvas */}
           {isAuthenticated && (
-            <div className={`fixed ${chatBottom} ${chatLeft} flex items-end gap-4 z-40 transition-all duration-300`}>
+            <div className={`fixed ${chatBottom} ${chatLeft} flex items-end gap-3 z-40 transition-all duration-300 pointer-events-auto`}>
               {activeChats.map((username) => (
                 <ChatWindow 
                   key={username}
                   friendUsername={username} 
-                  onClose={() => handleCloseChat(username)} 
+                  onClose={() => handleCloseChat(username)}
+                  isMinimized={Boolean(minimizedChats[username])}
+                  onToggleMinimize={() => handleToggleMinimize(username)}
                 />
               ))}
             </div>
