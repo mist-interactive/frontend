@@ -323,6 +323,115 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
   };
 
 
+  // group friends into categories
+  const pendingFriends = state.items.filter((f) => f.status === 'pending');
+  const acceptedFriends = state.items.filter((f) => f.status === 'accepted');
+  const onlineFriends = acceptedFriends
+    .filter((f) => Boolean(f.is_online))
+    .sort((a, b) => a.username.localeCompare(b.username));
+  const offlineFriends = acceptedFriends
+    .filter((f) => !f.is_online)
+    .sort((a, b) => a.username.localeCompare(b.username));
+
+  // reusable renderer for individual friend cards
+  const renderFriendCard = (friend: Friend) => (
+    <li key={friend.friendship_id} className="flex flex-col bg-zinc-800 border-4 border-black p-3 shadow-[4px_4px_0_0_#000000]">
+      {/* top row: username and status icon */}
+      <div className="flex justify-between items-center w-full mb-2">
+        <div className="flex items-center gap-2">
+          {/* green pixel indicates if friend online, gray if offline */}
+          <div className={`w-2 h-2 border border-black shadow-[1px_1px_0_0_#000] ${
+            friend.is_online ? 'bg-lime-500' : 'bg-zinc-600'
+          }`}></div>
+          <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">
+            {friend.username}
+          </span>
+          {Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0) && (
+            <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
+              {unreadCounts[friend.username] > 99 ? '99+' : unreadCounts[friend.username]}
+            </span>
+          )}
+        </div>
+        
+        {/* visual indicator of status */}
+        {friend.status === 'accepted' && <span className="text-lime-500 text-xl font-bold leading-none">+</span>}
+        {friend.status === 'pending' && <span className="text-amber-500 text-xs font-bold uppercase">Pending</span>}
+      </div>
+
+      {/* bottom row: tactical action buttons */}
+      <div className="flex gap-3 justify-end border-t-2 border-zinc-900 pt-3">
+        {/* pending incoming requests */}
+        {friend.status === 'pending' && friend.is_incoming && (
+          <>
+            <button 
+              onClick={() => handleAcceptFriend(friend.friendship_id)}
+              className="text-lime-500 hover:text-lime-400 font-bold uppercase text-xs tracking-widest transition-colors"
+            >
+              Accept
+            </button>
+            <button 
+              onClick={() => handleRemoveFriend(friend.friendship_id)}
+              className="text-red-500 hover:text-red-400 font-bold uppercase text-xs tracking-widest transition-colors"
+            >
+              Ignore
+            </button>
+          </>
+        )}
+
+        {/* pending outgoing requests */}
+        {friend.status === 'pending' && !friend.is_incoming && (
+          <button 
+            onClick={() => handleRemoveFriend(friend.friendship_id)}
+            className="text-zinc-500 hover:text-zinc-400 font-bold uppercase text-xs tracking-widest transition-colors"
+          >
+            Cancel
+          </button>
+        )}
+
+        {/* accepted friends actions */}
+        {friend.status === 'accepted' && (
+          <>
+            <button 
+              onClick={() => onOpenChat && onOpenChat(friend.username)}
+              className={`font-bold uppercase text-xs tracking-widest transition-colors flex items-center gap-1.5 ${
+                Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0)
+                  ? 'text-rose-400 hover:text-rose-300 font-black'
+                  : 'text-zinc-300 hover:text-zinc-100'
+              }`}
+            >
+              <span>Chat</span>
+              {Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0) && (
+                <span className="px-1 py-0.2 bg-rose-600 text-white text-[9px] leading-none border border-black font-black">
+                  {unreadCounts[friend.username] > 99 ? '99+' : unreadCounts[friend.username]}
+                </span>
+              )}
+            </button>
+            
+            {/* duel challenge button */}
+            <button 
+              onClick={() => handleChallenge(friend.username)}
+              disabled={cooldowns.includes(friend.username) || !friend.is_online}
+              className={`font-bold uppercase text-xs tracking-widest transition-colors ${
+                cooldowns.includes(friend.username) || !friend.is_online
+                  ? 'text-zinc-600 cursor-not-allowed' 
+                  : 'text-amber-500 hover:text-amber-400'
+              }`}
+            >
+              {cooldowns.includes(friend.username) ? 'WAIT' : 'DUEL'}
+            </button>
+
+            <button 
+              onClick={() => handleRemoveFriend(friend.friendship_id)}
+              className="text-zinc-600 hover:text-red-500 font-bold uppercase text-xs tracking-widest transition-colors ml-auto"
+            >
+              Del
+            </button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+
   return (
     // main tactical drawer docked between navbar and footer
     <div className={`absolute left-0 top-0 bottom-0 w-80 bg-zinc-900 border-r-4 border-black z-50 transition-transform duration-300 overflow-hidden font-sans flex flex-col shadow-[8px_0_0_0_#000000] ${
@@ -367,112 +476,56 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
             </button>
           </div>
 
-          {/* friend list rendering */}
-          <ul className="flex flex-col gap-3">
-            {state.items.map((friend) => (
-              
-              // tactical list item block
-              <li key={friend.friendship_id} className="flex flex-col bg-zinc-800 border-4 border-black p-3 shadow-[4px_4px_0_0_#000000]">
-                
-                {/* top row: username and status icon */}
-                <div className="flex justify-between items-center w-full mb-2">
-                  <div className="flex items-center gap-2">
-                    {/* green pixel indicates if friend online */}
-                    <div className={`w-2 h-2 border border-black shadow-[1px_1px_0_0_#000] ${
-                      friend.is_online ? 'bg-lime-500' : 'bg-zinc-600'
-                    }`}></div>
-                    <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">
-                      {friend.username}
-                    </span>
-                    {Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0) && (
-                      <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
-                        {unreadCounts[friend.username] > 99 ? '99+' : unreadCounts[friend.username]}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* visual indicator of status */}
-                  {friend.status === 'accepted' && <span className="text-lime-500 text-xl font-bold leading-none">+</span>}
-                  {friend.status === 'pending' && <span className="text-amber-500 text-xs font-bold uppercase">Pending</span>}
-                </div>
+          {/* pending friend requests (if any) */}
+          {pendingFriends.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-500 border-b-2 border-zinc-800 pb-1">
+                <div className="w-2 h-2 bg-amber-500 border border-black shadow-[1px_1px_0_0_#000]"></div>
+                <span>Pending Requests ({pendingFriends.length})</span>
+              </div>
+              <ul className="flex flex-col gap-3">
+                {pendingFriends.map(renderFriendCard)}
+              </ul>
+            </div>
+          )}
 
-                {/* bottom row: tactical action buttons */}
-                <div className="flex gap-3 justify-end border-t-2 border-zinc-900 pt-3">
-                  
-                  {/* pending incoming requests */}
-                  {friend.status === 'pending' && friend.is_incoming && (
-                    <>
-                      <button 
-                        onClick={() => handleAcceptFriend(friend.friendship_id)}
-                        className="text-lime-500 hover:text-lime-400 font-bold uppercase text-xs tracking-widest transition-colors"
-                      >
-                        Accept
-                      </button>
-                      <button 
-                        onClick={() => handleRemoveFriend(friend.friendship_id)}
-                        className="text-red-500 hover:text-red-400 font-bold uppercase text-xs tracking-widest transition-colors"
-                      >
-                        Ignore
-                      </button>
-                    </>
-                  )}
+          {/* online friends */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-300 border-b-2 border-zinc-800 pb-1">
+              <div className="w-2 h-2 bg-lime-500 border border-black shadow-[1px_1px_0_0_#000]"></div>
+              <span>Online ({onlineFriends.length})</span>
+            </div>
+            {onlineFriends.length === 0 ? (
+              <span className="text-zinc-600 text-xs italic py-1 px-1">No friends online</span>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {onlineFriends.map(renderFriendCard)}
+              </ul>
+            )}
+          </div>
 
-                  {/* pending outgoing requests */}
-                  {friend.status === 'pending' && !friend.is_incoming && (
-                    <button 
-                      onClick={() => handleRemoveFriend(friend.friendship_id)}
-                      className="text-zinc-500 hover:text-zinc-400 font-bold uppercase text-xs tracking-widest transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  )}
+          {/* offline friends */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500 border-b-2 border-zinc-800 pb-1">
+              <div className="w-2 h-2 bg-zinc-600 border border-black shadow-[1px_1px_0_0_#000]"></div>
+              <span>Offline ({offlineFriends.length})</span>
+            </div>
+            {offlineFriends.length === 0 ? (
+              <span className="text-zinc-600 text-xs italic py-1 px-1">No friends offline</span>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {offlineFriends.map(renderFriendCard)}
+              </ul>
+            )}
+          </div>
 
-                  {/* accepted friends actions */}
-                  {friend.status === 'accepted' && (
-                    <>
-                      <button 
-                        onClick={() => onOpenChat && onOpenChat(friend.username)}
-                        className={`font-bold uppercase text-xs tracking-widest transition-colors flex items-center gap-1.5 ${
-                          Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0)
-                            ? 'text-rose-400 hover:text-rose-300 font-black'
-                            : 'text-zinc-300 hover:text-zinc-100'
-                        }`}
-                      >
-                        <span>Chat</span>
-                        {Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0) && (
-                          <span className="px-1 py-0.2 bg-rose-600 text-white text-[9px] leading-none border border-black font-black">
-                            {unreadCounts[friend.username] > 99 ? '99+' : unreadCounts[friend.username]}
-                          </span>
-                        )}
-                      </button>
-                      
-                      {/* the new challenge button */}
-                      <button 
-                        onClick={() => handleChallenge(friend.username)}
-                        // button locked if cooldown or offline
-                        disabled={cooldowns.includes(friend.username) || !friend.is_online}
-                        className={`font-bold uppercase text-xs tracking-widest transition-colors ${
-                          cooldowns.includes(friend.username) || !friend.is_online
-                            ? 'text-zinc-600 cursor-not-allowed' 
-                            : 'text-amber-500 hover:text-amber-400'
-                        }`}
-                      >
-                        {cooldowns.includes(friend.username) ? 'WAIT' : 'DUEL'}
-                      </button>
-
-                      <button 
-                        onClick={() => handleRemoveFriend(friend.friendship_id)}
-                        className="text-zinc-600 hover:text-red-500 font-bold uppercase text-xs tracking-widest transition-colors ml-auto"
-                      >
-                        Del
-                      </button>
-                    </>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+          {/* empty state when user has no friends at all */}
+          {!state.isLoading && state.items.length === 0 && (
+            <div className="text-center text-zinc-500 text-xs font-bold uppercase tracking-wider py-8">
+              No friends added yet
+            </div>
+          )}
+      </div>
     </div>
   );
 }
