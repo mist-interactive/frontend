@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import reactLogo from '../assets/react.svg';
 import { apiFetch } from "../utils/apiFetch";
+import { getAuthUser } from "../utils/auth";
 
 interface UserStats {
   games_played: number;
@@ -75,9 +76,25 @@ export default function Profile() {
   const { username } = useParams();
   const navigate = useNavigate();
 
+  const authUser = getAuthUser();
+
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [initialUserData, setInitialUserData] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // check if current user is viewing their own profile wall
+  const isOwnProfile = !username || Boolean(authUser && userData?.username && authUser.username.toLowerCase() === userData.username.toLowerCase());
+
+  // determine if current user has permission to delete a comment
+  const canDeleteComment = (comment: ProfileComment): boolean => {
+    if (!authUser) return false;
+    // wall owner can delete any comment on their profile
+    if (isOwnProfile) return true;
+    // on other profiles, users can only delete their own comments
+    if (comment.poster_id && authUser.userId === comment.poster_id) return true;
+    if (comment.poster_username && authUser.username.toLowerCase() === comment.poster_username.toLowerCase()) return true;
+    return false;
+  };
 
   // player search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,6 +110,8 @@ export default function Profile() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [isLoadingMoreComments, setIsLoadingMoreComments] = useState(false);
 
   // state for view and edit modes
   const [isEditing, setIsEditing] = useState(false);
@@ -188,12 +207,15 @@ export default function Profile() {
         if (response.ok) {
           const data = await response.json();
           setComments(Array.isArray(data.comments) ? data.comments : []);
+          setHasMoreComments(Boolean(data.has_more));
         } else {
           setComments([]);
+          setHasMoreComments(false);
         }
       } catch (error) {
         console.error("Failed to fetch comments:", error);
         setComments([]);
+        setHasMoreComments(false);
       } finally {
         setIsLoadingComments(false);
       }
@@ -253,9 +275,45 @@ export default function Profile() {
     }
   };
 
-  // handle deleting a comment
-  const handleDeleteComment = (id: number) => {
-    setComments(comments.filter((c) => c.id !== id));
+  // handle deleting a comment via backend API
+  const handleDeleteComment = async (commentId: number) => {
+    const profileUsername = username || userData?.username;
+    if (!profileUsername) return;
+
+    try {
+      const response = await apiFetch(`/api/protected/profile/${profileUsername}/comments/${commentId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok || response.status === 204) {
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
+      } else {
+        console.error("failed to delete comment, status:", response.status);
+      }
+    } catch (error) {
+      console.error("network error deleting comment:", error);
+    }
+  };
+
+  // handle loading older comments with cursor pagination
+  const handleLoadMoreComments = async () => {
+    const profileUsername = username || userData?.username;
+    if (!profileUsername || comments.length === 0 || isLoadingMoreComments) return;
+
+    const lastId = comments[comments.length - 1].id;
+    setIsLoadingMoreComments(true);
+    try {
+      const response = await apiFetch(`/api/protected/profile/${profileUsername}/comments?limit=10&last_shown_id=${lastId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setComments((prev) => [...prev, ...(data.comments || [])]);
+        setHasMoreComments(Boolean(data.has_more));
+      }
+    } catch (error) {
+      console.error("failed to load more comments:", error);
+    } finally {
+      setIsLoadingMoreComments(false);
+    }
   };
 
   // save profile updates
@@ -911,16 +969,32 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  {/* Delete button */}
-                  <button
-                    onClick={() => handleDeleteComment(comment.id)}
-                    title="Delete comment"
-                    className="text-zinc-500 hover:text-rose-400 text-xs font-bold uppercase tracking-wider px-2 py-1 transition-colors self-end sm:self-start"
-                  >
-                    Delete
-                  </button>
+                  {/* Delete button (only rendered if user has permission) */}
+                  {canDeleteComment(comment) && (
+                    <button
+                      onClick={() => handleDeleteComment(comment.id)}
+                      title="Delete comment"
+                      className="text-zinc-500 hover:text-rose-400 text-xs font-bold uppercase tracking-wider px-2 py-1 transition-colors self-end sm:self-start"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               ))
+            )}
+
+            {/* Load more comments button */}
+            {hasMoreComments && (
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={handleLoadMoreComments}
+                  disabled={isLoadingMoreComments}
+                  className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 font-bold uppercase tracking-wider text-xs px-6 py-2.5 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all"
+                >
+                  {isLoadingMoreComments ? "Loading more..." : "Load More Comments"}
+                </button>
+              </div>
             )}
           </div>
         </div>
