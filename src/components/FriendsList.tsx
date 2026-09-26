@@ -12,6 +12,7 @@ interface Friend {
   status: 'pending' | 'accepted' | 'blocked';
   is_incoming: boolean;
   is_online?: boolean;
+  unread_count?: number;
 }
 
 // component state
@@ -93,9 +94,11 @@ interface FriendsListProps {
   onOpenChat?: (username: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  unreadCounts?: Record<string, number>;
+  onInitialUnreadCounts?: (counts: Record<string, number>) => void;
 }
 
-export default function FriendsList({ onOpenChat, isOpen, onClose }: FriendsListProps) {
+export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts = {}, onInitialUnreadCounts }: FriendsListProps) {
 
   const [newFriendName, setNewFriendName] = useState("");
   const { sendMessage, lastMessage } = useWebSocket();
@@ -123,6 +126,16 @@ export default function FriendsList({ onOpenChat, isOpen, onClose }: FriendsList
         // send data to reducer
         // reducer puts the data into state.items array.
         dispatch({ type: 'FETCH_SUCCESS', payload: data });
+
+        if (onInitialUnreadCounts && Array.isArray(data)) {
+          const initialMap: Record<string, number> = {};
+          for (const item of data) {
+            if (item.username && item.unread_count > 0) {
+              initialMap[item.username] = Number(item.unread_count);
+            }
+          }
+          onInitialUnreadCounts(initialMap);
+        }
         
       } catch (error) {
         // error catching
@@ -371,6 +384,11 @@ export default function FriendsList({ onOpenChat, isOpen, onClose }: FriendsList
                     <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">
                       {friend.username}
                     </span>
+                    {Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0) && (
+                      <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
+                        {unreadCounts[friend.username] > 99 ? '99+' : unreadCounts[friend.username]}
+                      </span>
+                    )}
                   </div>
                   
                   {/* visual indicator of status */}
@@ -414,9 +432,18 @@ export default function FriendsList({ onOpenChat, isOpen, onClose }: FriendsList
                     <>
                       <button 
                         onClick={() => onOpenChat && onOpenChat(friend.username)}
-                        className="text-zinc-300 hover:text-zinc-100 font-bold uppercase text-xs tracking-widest transition-colors"
+                        className={`font-bold uppercase text-xs tracking-widest transition-colors flex items-center gap-1.5 ${
+                          Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0)
+                            ? 'text-rose-400 hover:text-rose-300 font-black'
+                            : 'text-zinc-300 hover:text-zinc-100'
+                        }`}
                       >
-                        Chat
+                        <span>Chat</span>
+                        {Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0) && (
+                          <span className="px-1 py-0.2 bg-rose-600 text-white text-[9px] leading-none border border-black font-black">
+                            {unreadCounts[friend.username] > 99 ? '99+' : unreadCounts[friend.username]}
+                          </span>
+                        )}
                       </button>
                       
                       {/* the new challenge button */}

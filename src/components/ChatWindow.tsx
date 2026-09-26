@@ -26,9 +26,11 @@ interface ChatWindowProps {
   onClose: () => void;
   isMinimized?: boolean;
   onToggleMinimize?: () => void;
+  unreadCount?: number;
+  onMarkAsRead?: (friendUsername: string) => void;
 }
 
-export default function ChatWindow({ friendUsername, onClose, isMinimized, onToggleMinimize }: ChatWindowProps) {
+export default function ChatWindow({ friendUsername, onClose, isMinimized, onToggleMinimize, unreadCount = 0, onMarkAsRead }: ChatWindowProps) {
   const [localMinimized, setLocalMinimized] = useState(false);
   const minimized = isMinimized !== undefined ? isMinimized : localMinimized;
   const toggleMinimize = onToggleMinimize ?? (() => setLocalMinimized(prev => !prev));
@@ -39,7 +41,25 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
   const [error, setError] = useState<string | null>(null);
   const { sendMessage, lastMessage } = useWebSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastProcessedMsgRef = useRef<any>(null);
   const myUserId = getAuthUser()?.userId ?? -1;
+
+  // mark messages as read via backend API and notify parent
+  const markMessagesAsRead = async (upToId: number) => {
+    if (upToId <= 0) return;
+    try {
+      await apiFetch(`/api/protected/messages/${friendUsername}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ read_up_to: upToId }),
+      });
+      onMarkAsRead?.(friendUsername);
+    } catch (err) {
+      console.error("Failed to mark messages as read:", err);
+    }
+  };
 
   /*
     EFFECT: Fetches message history when the window mounts.
@@ -59,7 +79,18 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
         }
         
         const data = await response.json();
-        setMessages(data);
+        setMessages(Array.isArray(data) ? data : []);
+
+        // if window is open and not minimized, mark latest friend message as read
+        if (!minimized && Array.isArray(data) && data.length > 0) {
+          const friendMsgs = data.filter((m: Message) => m.sender_id !== myUserId && m.sender_username !== 'ME');
+          if (friendMsgs.length > 0) {
+            const maxId = Math.max(...friendMsgs.map((m: Message) => m.id));
+            if (maxId > 0) {
+              markMessagesAsRead(maxId);
+            }
+          }
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -70,12 +101,27 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
     fetchMessages();
   }, [friendUsername]);
 
+  // when window is un-minimized, mark existing messages as read
+  useEffect(() => {
+    if (!minimized && messages.length > 0) {
+      const friendMsgs = messages.filter((m) => m.sender_id !== myUserId && m.sender_username !== 'ME');
+      if (friendMsgs.length > 0) {
+        const maxId = Math.max(...friendMsgs.map((m) => m.id));
+        if (maxId > 0) {
+          markMessagesAsRead(maxId);
+        }
+      }
+    }
+  }, [minimized]);
+
   // listen for incoming websocket messages.
   useEffect(() => {
-    if (!lastMessage) return;
+    if (!lastMessage || lastProcessedMsgRef.current === lastMessage) return;
 
     // check if it's a DM and if it belongs to this specific chat window
-    if (lastMessage.type === 'direct_message_recv' && lastMessage.payload.username === friendUsername) {
+    if (lastMessage.type === 'direct_message_recv' && lastMessage.payload?.username === friendUsername) {
+      lastProcessedMsgRef.current = lastMessage;
+
       const incomingMsg: Message = {
         id: lastMessage.payload.id,
         sender_id: -1, // We don't have the numeric ID in the WS payload, but that's ok
@@ -86,10 +132,20 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
         sender_username: lastMessage.payload.username
       };
 
-      // Append incoming message to the local list
-      setMessages((prevMessages) => [...prevMessages, incomingMsg]);
+      // Append incoming message to the local list (guarding against duplicate ID)
+      setMessages((prevMessages) => {
+        if (incomingMsg.id && prevMessages.some((m) => m.id === incomingMsg.id)) {
+          return prevMessages;
+        }
+        return [...prevMessages, incomingMsg];
+      });
+
+      // if window is open, mark it as read immediately
+      if (!minimized && incomingMsg.id > 0) {
+        markMessagesAsRead(incomingMsg.id);
+      }
     }
-  }, [lastMessage, friendUsername]);
+  }, [lastMessage, friendUsername, minimized]);
 
   /*
     HANDLER: Sends a new message.
@@ -144,6 +200,11 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
           <span className="font-bold text-zinc-100 tracking-widest text-xs uppercase truncate">
             {friendUsername}
           </span>
+          {Boolean(minimized && unreadCount > 0) && (
+            <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </div>
         <div className="flex items-center shrink-0">
           <button 
