@@ -11,12 +11,35 @@ interface UserStats {
   win_rate: number;
 }
 
+interface ProgressionInfo {
+  total_xp: number;
+  level: number;
+  current_level_xp: number;
+  xp_per_level: number;
+  progress_percent: number;
+  rank_title: string;
+}
+
+interface UserBadge {
+  id: string;
+  name: string;
+  description: string;
+  type: 'trophy' | 'friend' | 'shield' | 'target';
+  unlocked: boolean;
+  unlocked_at?: string;
+  progress: number;
+  target: number;
+  progress_pct: number;
+}
+
 interface UserProfile {
   username: string;
   email?: string;
   bio: string;
   avatarUrl: string | null;
   stats?: UserStats;
+  progression?: ProgressionInfo;
+  badges?: UserBadge[];
 }
 
 interface MatchItem {
@@ -31,14 +54,6 @@ interface MatchItem {
   outcome: 'win' | 'loss' | 'aborted' | null;
   started_at: string;
   finished_at: string | null;
-}
-
-interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  unlocked: boolean;
-  type: 'trophy' | 'friend' | 'shield' | 'target';
 }
 
 interface ProfileComment {
@@ -57,6 +72,65 @@ function getRankTitle(level: number): string {
   if (level <= 5) return 'Veteran';
   return 'Grandmaster';
 }
+
+const DEFAULT_BADGE_CATALOG: Omit<UserBadge, 'unlocked' | 'progress' | 'progress_pct'>[] = [
+  {
+    id: "first_friend",
+    name: "Wingman",
+    description: "Add your first friend",
+    type: "friend",
+    target: 1,
+  },
+  {
+    id: "first_win",
+    name: "First Blood",
+    description: "Win your first game",
+    type: "trophy",
+    target: 1,
+  },
+  {
+    id: "dominator",
+    name: "Dominator",
+    description: "Achieve 3 wins",
+    type: "trophy",
+    target: 3,
+  },
+  {
+    id: "champion",
+    name: "Champion",
+    description: "Achieve 5 wins",
+    type: "trophy",
+    target: 5,
+  },
+  {
+    id: "legend",
+    name: "Legend",
+    description: "Achieve 10 wins",
+    type: "trophy",
+    target: 10,
+  },
+  {
+    id: "veteran",
+    name: "Arena Veteran",
+    description: "Play at least 5 matches",
+    type: "shield",
+    target: 5,
+  },
+  {
+    id: "gladiator",
+    name: "Gladiator",
+    description: "Play at least 10 matches",
+    type: "shield",
+    target: 10,
+  },
+  {
+    id: "warlord",
+    name: "Warlord",
+    description: "Play at least 20 matches",
+    type: "shield",
+    target: 20,
+  },
+];
 
 function formatMatchDate(dateString: string): string {
   try {
@@ -399,45 +473,50 @@ export default function Profile() {
     win_rate: 0,
   };
 
-  // progression calculations
-  const totalXp = (stats.wins * 100) + (stats.losses * 35);
-  const xpPerLevel = 200;
-  const currentLevel = Math.floor(totalXp / xpPerLevel) + 1;
-  const currentLevelXp = totalXp % xpPerLevel;
-  const progressPercent = Math.min(100, Math.floor((currentLevelXp / xpPerLevel) * 100));
-  const rankTitle = getRankTitle(currentLevel);
+  // progression details from backend API (with safe fallback if missing)
+  const fallbackTotalXp = (stats.wins * 100) + (stats.losses * 35);
+  const fallbackXpPerLevel = 200;
+  const fallbackLevel = Math.floor(fallbackTotalXp / fallbackXpPerLevel) + 1;
+  const fallbackCurrentLevelXp = fallbackTotalXp % fallbackXpPerLevel;
+  const fallbackProgressPercent = Math.min(100, Math.floor((fallbackCurrentLevelXp / fallbackXpPerLevel) * 100));
 
-  // badges configuration
-  const badges: Badge[] = [
-    {
-      id: "first_win",
-      name: "First Blood",
-      description: "Win your first game",
-      unlocked: stats.wins >= 1,
-      type: "trophy",
-    },
-    {
-      id: "first_friend",
-      name: "Wingman",
-      description: "Add your first friend",
-      unlocked: hasFriends,
-      type: "friend",
-    },
-    {
-      id: "veteran",
-      name: "Arena Veteran",
-      description: "Play at least 5 matches",
-      unlocked: stats.games_played >= 5,
-      type: "shield",
-    },
-    {
-      id: "dominator",
-      name: "Dominator",
-      description: "Achieve 3 or more wins",
-      unlocked: stats.wins >= 3,
-      type: "target",
-    },
-  ];
+  const progression: ProgressionInfo = userData?.progression || {
+    total_xp: fallbackTotalXp,
+    level: fallbackLevel,
+    current_level_xp: fallbackCurrentLevelXp,
+    xp_per_level: fallbackXpPerLevel,
+    progress_percent: fallbackProgressPercent,
+    rank_title: getRankTitle(fallbackLevel),
+  };
+
+  const currentLevel = progression.level;
+  const currentLevelXp = progression.current_level_xp;
+  const xpPerLevel = progression.xp_per_level;
+  const progressPercent = progression.progress_percent;
+  const rankTitle = progression.rank_title;
+
+  // derive badges: use backend-provided badges if available, or compute from catalog with live stats as fallback
+  const badges: UserBadge[] = userData?.badges && userData.badges.length > 0
+    ? userData.badges
+    : DEFAULT_BADGE_CATALOG.map((b) => {
+        let current = 0;
+        if (b.type === 'friend') {
+          current = hasFriends ? 1 : 0;
+        } else if (b.id === 'first_win' || b.id === 'dominator' || b.id === 'champion' || b.id === 'legend') {
+          current = stats.wins;
+        } else if (b.id === 'veteran' || b.id === 'gladiator' || b.id === 'warlord') {
+          current = stats.games_played;
+        }
+        const progress = Math.max(0, Math.min(current, b.target));
+        const progress_pct = b.target > 0 ? Math.round((progress / b.target) * 100) : 0;
+        const unlocked = current >= b.target;
+        return {
+          ...b,
+          progress,
+          progress_pct,
+          unlocked,
+        };
+      });
 
   if (isLoading) {
     return (
@@ -784,6 +863,27 @@ export default function Profile() {
                   <div className="text-[11px] text-zinc-400 mt-0.5">
                     {badge.description}
                   </div>
+                  {/* Progress bar for multi-step achievements */}
+                  {badge.target > 1 && !badge.unlocked && (
+                    <div className="mt-2 pt-2 border-t border-zinc-800/80">
+                      <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400 mb-1">
+                        <span>Progress</span>
+                        <span>{badge.progress} / {badge.target} ({badge.progress_pct}%)</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-zinc-950 border border-black overflow-hidden">
+                        <div
+                          className="h-full bg-lime-500 transition-all duration-300"
+                          style={{ width: `${Math.min(100, badge.progress_pct)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {badge.unlocked && badge.target > 1 && (
+                    <div className="mt-1.5 text-[10px] font-mono text-lime-400 flex items-center justify-between">
+                      <span>Completed</span>
+                      <span>{badge.target} / {badge.target}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
