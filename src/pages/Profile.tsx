@@ -41,9 +41,11 @@ interface Badge {
 }
 
 interface ProfileComment {
-  id: string;
-  author: string;
-  author_avatar_url: string | null;
+  id: number;
+  owner_id?: number;
+  poster_id?: number;
+  poster_username: string;
+  poster_avatar_url: string | null;
   content: string;
   created_at: string;
 }
@@ -85,23 +87,11 @@ export default function Profile() {
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
   const [hasFriends, setHasFriends] = useState(false);
 
-  // comments section scaffold state
-  const [comments, setComments] = useState<ProfileComment[]>([
-    {
-      id: "sample-1",
-      author: "pong_legend",
-      author_avatar_url: null,
-      content: "gg wp in the last match! great paddle speed.",
-      created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    },
-    {
-      id: "sample-2",
-      author: "retro_master",
-      author_avatar_url: null,
-      content: "signed profile! looking forward to a rematch anytime.",
-      created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    },
-  ]);
+  // comments section state
+  const [comments, setComments] = useState<ProfileComment[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(true);
+  const [isPostingComment, setIsPostingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
 
   // state for view and edit modes
@@ -186,6 +176,32 @@ export default function Profile() {
     }
   }, [username]);
 
+  // fetch comments for the displayed profile
+  useEffect(() => {
+    const profileUsername = username || userData?.username;
+    if (!profileUsername) return;
+
+    const fetchComments = async () => {
+      setIsLoadingComments(true);
+      try {
+        const response = await apiFetch(`/api/protected/profile/${profileUsername}/comments?limit=10`);
+        if (response.ok) {
+          const data = await response.json();
+          setComments(Array.isArray(data.comments) ? data.comments : []);
+        } else {
+          setComments([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch comments:", error);
+        setComments([]);
+      } finally {
+        setIsLoadingComments(false);
+      }
+    };
+
+    fetchComments();
+  }, [username, userData?.username]);
+
   // handle text input changes
   const handleInputChange = (field: keyof UserProfile, value: string) => {
     if (userData) {
@@ -203,26 +219,42 @@ export default function Profile() {
     }
   };
 
-  // handle posting a comment (frontend scaffold)
-  const handlePostComment = (e: React.FormEvent) => {
+  // handle posting a comment to backend
+  const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
+    const profileUsername = username || userData?.username;
     const trimmed = newCommentText.trim();
-    if (!trimmed) return;
+    if (!trimmed || !profileUsername || isPostingComment) return;
 
-    const newComment: ProfileComment = {
-      id: `comment-${Date.now()}`,
-      author: "you",
-      author_avatar_url: userData?.avatarUrl || null,
-      content: trimmed,
-      created_at: new Date().toISOString(),
-    };
+    setIsPostingComment(true);
+    setCommentError(null);
+    try {
+      const response = await apiFetch(`/api/protected/profile/${profileUsername}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: trimmed }),
+      });
 
-    setComments([newComment, ...comments]);
-    setNewCommentText("");
+      if (response.ok) {
+        const createdComment: ProfileComment = await response.json();
+        setComments((prev) => [createdComment, ...prev]);
+        setNewCommentText("");
+      } else {
+        const errText = await response.text();
+        setCommentError(errText || "Failed to post comment");
+      }
+    } catch (error) {
+      console.error("network error posting comment:", error);
+      setCommentError("Network error while posting comment");
+    } finally {
+      setIsPostingComment(false);
+    }
   };
 
   // handle deleting a comment
-  const handleDeleteComment = (id: string) => {
+  const handleDeleteComment = (id: number) => {
     setComments(comments.filter((c) => c.id !== id));
   };
 
@@ -812,23 +844,33 @@ export default function Profile() {
               className="bg-zinc-950 border-2 border-black p-2.5 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-medium resize-none break-words [overflow-wrap:anywhere]"
             />
 
+            {commentError && (
+              <div className="bg-red-950 border border-red-700 text-red-300 text-xs px-3 py-2 font-mono">
+                {commentError}
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-zinc-500 font-medium">
                 Plain text only • Max 500 characters
               </span>
               <button
                 type="submit"
-                disabled={!newCommentText.trim()}
+                disabled={!newCommentText.trim() || isPostingComment}
                 className="bg-lime-600 hover:bg-lime-500 disabled:opacity-40 text-black font-black uppercase tracking-wider px-5 py-2 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs"
               >
-                Post Comment
+                {isPostingComment ? "Posting..." : "Post Comment"}
               </button>
             </div>
           </form>
 
           {/* Comments List */}
           <div className="space-y-3">
-            {comments.length === 0 ? (
+            {isLoadingComments ? (
+              <div className="text-center py-8 bg-zinc-900 border-2 border-black text-zinc-400 font-bold uppercase tracking-wider text-xs">
+                Loading comments...
+              </div>
+            ) : comments.length === 0 ? (
               <div className="text-center py-8 bg-zinc-900 border-2 border-black border-dashed text-zinc-400">
                 <p className="font-bold uppercase tracking-widest text-sm text-zinc-300">
                   No comments yet
@@ -844,20 +886,20 @@ export default function Profile() {
                   className="flex flex-col sm:flex-row items-start justify-between gap-3 bg-zinc-900 border-2 border-black p-3.5 shadow-[2px_2px_0_0_#000000]"
                 >
                   <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
-                    <Link to={`/profile/${comment.author}`} className="shrink-0">
+                    <Link to={`/profile/${comment.poster_username}`} className="shrink-0">
                       <img
-                        src={comment.author_avatar_url || reactLogo}
-                        alt={comment.author}
+                        src={comment.poster_avatar_url || reactLogo}
+                        alt={comment.poster_username}
                         className="w-9 h-9 border border-black bg-zinc-800 object-cover"
                       />
                     </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Link
-                          to={`/profile/${comment.author}`}
+                          to={`/profile/${comment.poster_username}`}
                           className="font-bold text-sm text-white hover:text-lime-400 transition-colors uppercase tracking-wider"
                         >
-                          {comment.author}
+                          {comment.poster_username}
                         </Link>
                         <span className="text-[11px] text-zinc-400 font-medium">
                           {formatMatchDate(comment.created_at)}
