@@ -11,12 +11,35 @@ interface UserStats {
   win_rate: number;
 }
 
+interface ProgressionInfo {
+  total_xp: number;
+  level: number;
+  current_level_xp: number;
+  xp_per_level: number;
+  progress_percent: number;
+  rank_title: string;
+}
+
+interface UserBadge {
+  id: string;
+  name: string;
+  description: string;
+  type: 'trophy' | 'friend' | 'shield' | 'target';
+  unlocked: boolean;
+  unlocked_at?: string;
+  progress: number;
+  target: number;
+  progress_pct: number;
+}
+
 interface UserProfile {
   username: string;
   email?: string;
   bio: string;
   avatarUrl: string | null;
   stats?: UserStats;
+  progression?: ProgressionInfo;
+  badges?: UserBadge[];
 }
 
 interface MatchItem {
@@ -31,14 +54,6 @@ interface MatchItem {
   outcome: 'win' | 'loss' | 'aborted' | null;
   started_at: string;
   finished_at: string | null;
-}
-
-interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  unlocked: boolean;
-  type: 'trophy' | 'friend' | 'shield' | 'target';
 }
 
 interface ProfileComment {
@@ -57,6 +72,65 @@ function getRankTitle(level: number): string {
   if (level <= 5) return 'Veteran';
   return 'Grandmaster';
 }
+
+const DEFAULT_BADGE_CATALOG: Omit<UserBadge, 'unlocked' | 'progress' | 'progress_pct'>[] = [
+  {
+    id: "first_friend",
+    name: "Wingman",
+    description: "Add your first friend",
+    type: "friend",
+    target: 1,
+  },
+  {
+    id: "first_win",
+    name: "First Blood",
+    description: "Win your first game",
+    type: "trophy",
+    target: 1,
+  },
+  {
+    id: "dominator",
+    name: "Dominator",
+    description: "Achieve 3 wins",
+    type: "trophy",
+    target: 3,
+  },
+  {
+    id: "champion",
+    name: "Champion",
+    description: "Achieve 5 wins",
+    type: "trophy",
+    target: 5,
+  },
+  {
+    id: "legend",
+    name: "Legend",
+    description: "Achieve 10 wins",
+    type: "trophy",
+    target: 10,
+  },
+  {
+    id: "veteran",
+    name: "Arena Veteran",
+    description: "Play at least 5 matches",
+    type: "shield",
+    target: 5,
+  },
+  {
+    id: "gladiator",
+    name: "Gladiator",
+    description: "Play at least 10 matches",
+    type: "shield",
+    target: 10,
+  },
+  {
+    id: "warlord",
+    name: "Warlord",
+    description: "Play at least 20 matches",
+    type: "shield",
+    target: 20,
+  },
+];
 
 function formatMatchDate(dateString: string): string {
   try {
@@ -118,6 +192,9 @@ export default function Profile() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [bioError, setBioError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
 
   // clean up blob preview url to prevent memory leaks
   useEffect(() => {
@@ -228,6 +305,24 @@ export default function Profile() {
   const handleInputChange = (field: keyof UserProfile, value: string) => {
     if (userData) {
       setUserData({ ...userData, [field]: value });
+
+      if (field === 'bio') {
+        if (value.length > 500) {
+          setBioError("Bio cannot exceed 500 characters");
+        } else {
+          setBioError(null);
+        }
+      }
+
+      if (field === 'email') {
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          setEmailError("Please enter a valid email address");
+        } else if (value.length > 255) {
+          setEmailError("Email cannot exceed 255 characters");
+        } else {
+          setEmailError(null);
+        }
+      }
     }
   };
 
@@ -321,6 +416,22 @@ export default function Profile() {
     if (!userData) {
       return;
     }
+
+    // validate bio and email before sending
+    if (userData.bio && userData.bio.length > 500) {
+      setBioError("Bio cannot exceed 500 characters");
+      return;
+    }
+    if (userData.email && userData.email.length > 255) {
+      setEmailError("Email cannot exceed 255 characters");
+      return;
+    }
+    if (userData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    setEditGeneralError(null);
     setIsSaving(true);
     try {
       let currentData = userData;
@@ -338,7 +449,7 @@ export default function Profile() {
         if (!avatarResponse.ok) {
           const errorMsg = await avatarResponse.text();
           console.error("failed to upload avatar, status:", avatarResponse.status, errorMsg);
-          alert(`failed to upload avatar: ${errorMsg || "unsupported format (use PNG, JPEG, or GIF)"}`);
+          setEditGeneralError(`Failed to upload avatar: ${errorMsg || "unsupported format (use PNG, JPEG, or GIF)"}`);
           return;
         }
 
@@ -378,15 +489,21 @@ export default function Profile() {
           currentData = updated;
           setUserData(updated);
         } else {
-          console.error("Failed to update profile, status:", response.status);
+          const errText = await response.text();
+          console.error("Failed to update profile, status:", response.status, errText);
+          setEditGeneralError(errText || "Failed to update profile");
           return;
         }
       }
 
       setInitialUserData(currentData);
+      setBioError(null);
+      setEmailError(null);
+      setEditGeneralError(null);
       setIsEditing(false);
     } catch (error) {
       console.error("Network error during profile update:", error);
+      setEditGeneralError("Network error during profile update");
     } finally {
       setIsSaving(false);
     }
@@ -399,45 +516,50 @@ export default function Profile() {
     win_rate: 0,
   };
 
-  // progression calculations
-  const totalXp = (stats.wins * 100) + (stats.losses * 35);
-  const xpPerLevel = 200;
-  const currentLevel = Math.floor(totalXp / xpPerLevel) + 1;
-  const currentLevelXp = totalXp % xpPerLevel;
-  const progressPercent = Math.min(100, Math.floor((currentLevelXp / xpPerLevel) * 100));
-  const rankTitle = getRankTitle(currentLevel);
+  // progression details from backend API (with safe fallback if missing)
+  const fallbackTotalXp = (stats.wins * 100) + (stats.losses * 35);
+  const fallbackXpPerLevel = 200;
+  const fallbackLevel = Math.floor(fallbackTotalXp / fallbackXpPerLevel) + 1;
+  const fallbackCurrentLevelXp = fallbackTotalXp % fallbackXpPerLevel;
+  const fallbackProgressPercent = Math.min(100, Math.floor((fallbackCurrentLevelXp / fallbackXpPerLevel) * 100));
 
-  // badges configuration
-  const badges: Badge[] = [
-    {
-      id: "first_win",
-      name: "First Blood",
-      description: "Win your first game",
-      unlocked: stats.wins >= 1,
-      type: "trophy",
-    },
-    {
-      id: "first_friend",
-      name: "Wingman",
-      description: "Add your first friend",
-      unlocked: hasFriends,
-      type: "friend",
-    },
-    {
-      id: "veteran",
-      name: "Arena Veteran",
-      description: "Play at least 5 matches",
-      unlocked: stats.games_played >= 5,
-      type: "shield",
-    },
-    {
-      id: "dominator",
-      name: "Dominator",
-      description: "Achieve 3 or more wins",
-      unlocked: stats.wins >= 3,
-      type: "target",
-    },
-  ];
+  const progression: ProgressionInfo = userData?.progression || {
+    total_xp: fallbackTotalXp,
+    level: fallbackLevel,
+    current_level_xp: fallbackCurrentLevelXp,
+    xp_per_level: fallbackXpPerLevel,
+    progress_percent: fallbackProgressPercent,
+    rank_title: getRankTitle(fallbackLevel),
+  };
+
+  const currentLevel = progression.level;
+  const currentLevelXp = progression.current_level_xp;
+  const xpPerLevel = progression.xp_per_level;
+  const progressPercent = progression.progress_percent;
+  const rankTitle = progression.rank_title;
+
+  // derive badges: use backend-provided badges if available, or compute from catalog with live stats as fallback
+  const badges: UserBadge[] = userData?.badges && userData.badges.length > 0
+    ? userData.badges
+    : DEFAULT_BADGE_CATALOG.map((b) => {
+        let current = 0;
+        if (b.type === 'friend') {
+          current = hasFriends ? 1 : 0;
+        } else if (b.id === 'first_win' || b.id === 'dominator' || b.id === 'champion' || b.id === 'legend') {
+          current = stats.wins;
+        } else if (b.id === 'veteran' || b.id === 'gladiator' || b.id === 'warlord') {
+          current = stats.games_played;
+        }
+        const progress = Math.max(0, Math.min(current, b.target));
+        const progress_pct = b.target > 0 ? Math.round((progress / b.target) * 100) : 0;
+        const unlocked = current >= b.target;
+        return {
+          ...b,
+          progress,
+          progress_pct,
+          unlocked,
+        };
+      });
 
   if (isLoading) {
     return (
@@ -572,30 +694,53 @@ export default function Profile() {
 
               {/* Form text fields */}
               <div className="flex-1 min-w-0 flex flex-col gap-4">
+                {editGeneralError && (
+                  <div className="p-3 bg-rose-950/80 border-2 border-rose-600 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                    {editGeneralError}
+                  </div>
+                )}
+
                 <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
                   Email:
                   <input
                     type="email"
+                    maxLength={255}
                     value={userData.email || ""}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold w-full"
+                    className={`bg-zinc-900 border-4 ${emailError ? "border-rose-500" : "border-black"} p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold w-full`}
                   />
+                  {emailError && (
+                    <span className="text-[10px] text-rose-400 font-bold tracking-wider mt-0.5">
+                      {emailError}
+                    </span>
+                  )}
                 </label>
 
                 <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
                   Bio:
                   <textarea
+                    maxLength={500}
                     value={userData.bio || ""}
                     onChange={(e) => handleInputChange('bio', e.target.value)}
-                    rows={3}
-                    className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold resize-none w-full break-words [overflow-wrap:anywhere]"
+                    rows={4}
+                    className={`bg-zinc-900 border-4 ${bioError ? "border-rose-500" : "border-black"} p-2 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-bold resize-none w-full break-words [overflow-wrap:anywhere]`}
                   />
+                  <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider mt-0.5">
+                    {bioError ? (
+                      <span className="text-rose-400">{bioError}</span>
+                    ) : (
+                      <span className="text-zinc-500">Maximum 500 characters</span>
+                    )}
+                    <span className={(userData.bio?.length || 0) > 500 ? "text-rose-400 font-black" : (userData.bio?.length || 0) > 450 ? "text-amber-400" : "text-zinc-400"}>
+                      {(userData.bio?.length || 0)} / 500
+                    </span>
+                  </div>
                 </label>
 
                 <div className="flex flex-wrap gap-4 mt-2">
                   <button
                     onClick={handleSave}
-                    disabled={isSaving}
+                    disabled={isSaving || Boolean(bioError) || Boolean(emailError) || (Boolean(userData.bio) && userData.bio!.length > 500)}
                     className="px-6 py-2.5 bg-lime-600 text-black font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs w-auto"
                   >
                     {isSaving ? "Saving..." : "Save Profile"}
@@ -610,6 +755,9 @@ export default function Profile() {
                         setPreviewUrl(null);
                       }
                       setAvatarFile(null);
+                      setBioError(null);
+                      setEmailError(null);
+                      setEditGeneralError(null);
                       setIsEditing(false);
                     }}
                     disabled={isSaving}
@@ -650,6 +798,9 @@ export default function Profile() {
                     <button
                       onClick={() => {
                         setInitialUserData(userData);
+                        setBioError(null);
+                        setEmailError(null);
+                        setEditGeneralError(null);
                         setIsEditing(true);
                       }}
                       className="px-4 py-2 bg-zinc-700 text-white font-bold uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] hover:bg-zinc-600 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs shrink-0 w-auto"
@@ -784,6 +935,27 @@ export default function Profile() {
                   <div className="text-[11px] text-zinc-400 mt-0.5">
                     {badge.description}
                   </div>
+                  {/* Progress bar for multi-step achievements */}
+                  {badge.target > 1 && !badge.unlocked && (
+                    <div className="mt-2 pt-2 border-t border-zinc-800/80">
+                      <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400 mb-1">
+                        <span>Progress</span>
+                        <span>{badge.progress} / {badge.target} ({badge.progress_pct}%)</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-zinc-950 border border-black overflow-hidden">
+                        <div
+                          className="h-full bg-lime-500 transition-all duration-300"
+                          style={{ width: `${Math.min(100, badge.progress_pct)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {badge.unlocked && badge.target > 1 && (
+                    <div className="mt-1.5 text-[10px] font-mono text-lime-400 flex items-center justify-between">
+                      <span>Completed</span>
+                      <span>{badge.target} / {badge.target}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
