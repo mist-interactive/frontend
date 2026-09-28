@@ -2,6 +2,7 @@ import { useState, useEffect, useReducer } from 'react';
 import { apiFetch } from '../utils/apiFetch';
 import { HttpStatus } from '../utils/httpStatus';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { getAuthUser } from '../utils/auth';
 
 // friend data
 interface Friend {
@@ -210,22 +211,47 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
   // handler for adding new friend (empty stub for now)
   // deny empty field
     const handleAddFriend = async () => {
-    if (!newFriendName.trim()) return;
+    const trimmed = newFriendName.trim();
+    if (!trimmed) return;
+
+    const authUser = getAuthUser();
+    if (authUser && authUser.username.toLowerCase() === trimmed.toLowerCase()) {
+      dispatch({ type: 'FETCH_ERROR', payload: 'You cannot add yourself as a friend.' });
+      return;
+    }
+
+    const alreadyFriend = state.items.some(
+      (f) => f.username.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (alreadyFriend) {
+      dispatch({ type: 'FETCH_ERROR', payload: `"${trimmed}" is already in your friends list or has a pending request.` });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_-]{3,50}$/.test(trimmed)) {
+      dispatch({ type: 'FETCH_ERROR', payload: 'Username must be 3–50 alphanumeric characters (letters, numbers, _ and -).' });
+      return;
+    }
 
     try {
-    
-        const response = await apiFetch('/api/protected/friends', {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            target: newFriendName
-          }),
+      const response = await apiFetch('/api/protected/friends', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          target: trimmed
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send friend request. User might not exist.');
+        const errText = await response.text().catch(() => "");
+        if (response.status === HttpStatus.NOT_FOUND || errText.toLowerCase().includes("not found")) {
+          throw new Error(`User "${trimmed}" was not found.`);
+        } else if (errText.includes("already exists") || response.status === HttpStatus.CONFLICT) {
+          throw new Error(`A friend request with "${trimmed}" already exists.`);
+        }
+        throw new Error(errText || 'Failed to send friend request.');
       }
 
       // empty new friend name input field
@@ -235,17 +261,14 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
       const newRequest: Friend = {
         friendship_id: responseData.id,
         user_id: 0,
-        username: newFriendName,
+        username: trimmed,
         avatar_url: null,
         status: responseData.status,
         is_incoming: false
       };
 
       dispatch({ type: 'ADD_FRIEND', payload: newRequest });
-
-      } catch (error: any) {
-      // Dispatch the error to the reducer so the UI displays it to the user.
-      // Reusing FETCH_ERROR as it maps to the same state.error string.
+    } catch (error: any) {
       dispatch({ type: 'FETCH_ERROR', payload: error.message });
     }
   };
@@ -462,15 +485,22 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
           <div className="flex gap-2 w-full">
             <input 
                 type="text" 
+                maxLength={50}
                 value={newFriendName} 
-                onChange={(e) => setNewFriendName(e.target.value)}
+                onChange={(e) => {
+                  setNewFriendName(e.target.value);
+                  if (state.error) {
+                    dispatch({ type: 'FETCH_ERROR', payload: null as any });
+                  }
+                }}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddFriend()}
                 className="flex-1 bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-700 transition-colors text-white tracking-wider text-xs font-bold"
                 placeholder="USERNAME"
             />
             <button 
               onClick={handleAddFriend}
-              className="bg-lime-700 text-white font-bold uppercase tracking-widest px-3 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-xs"
+              disabled={!newFriendName.trim()}
+              className="bg-lime-700 text-white font-bold uppercase tracking-widest px-3 py-2 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-xs disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Add
             </button>
