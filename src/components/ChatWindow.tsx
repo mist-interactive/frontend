@@ -24,9 +24,16 @@ export interface Message {
 interface ChatWindowProps {
   friendUsername: string;
   onClose: () => void;
+  isMinimized?: boolean;
+  onToggleMinimize?: () => void;
+  unreadCount?: number;
+  onMarkAsRead?: (friendUsername: string) => void;
 }
 
-export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps) {
+export default function ChatWindow({ friendUsername, onClose, isMinimized, onToggleMinimize, unreadCount = 0, onMarkAsRead }: ChatWindowProps) {
+  const [localMinimized, setLocalMinimized] = useState(false);
+  const minimized = isMinimized !== undefined ? isMinimized : localMinimized;
+  const toggleMinimize = onToggleMinimize ?? (() => setLocalMinimized(prev => !prev));
   // UI states
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
@@ -34,7 +41,25 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
   const [error, setError] = useState<string | null>(null);
   const { sendMessage, lastMessage } = useWebSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastProcessedMsgRef = useRef<any>(null);
   const myUserId = getAuthUser()?.userId ?? -1;
+
+  // mark messages as read via backend API and notify parent
+  const markMessagesAsRead = async (upToId: number) => {
+    if (upToId <= 0) return;
+    try {
+      await apiFetch(`/api/protected/messages/${friendUsername}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ read_up_to: upToId }),
+      });
+      onMarkAsRead?.(friendUsername);
+    } catch (err) {
+      console.error("Failed to mark messages as read:", err);
+    }
+  };
 
   /*
     EFFECT: Fetches message history when the window mounts.
@@ -54,7 +79,18 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
         }
         
         const data = await response.json();
-        setMessages(data);
+        setMessages(Array.isArray(data) ? data : []);
+
+        // if window is open and not minimized, mark latest friend message as read
+        if (!minimized && Array.isArray(data) && data.length > 0) {
+          const friendMsgs = data.filter((m: Message) => m.sender_id !== myUserId && m.sender_username !== 'ME');
+          if (friendMsgs.length > 0) {
+            const maxId = Math.max(...friendMsgs.map((m: Message) => m.id));
+            if (maxId > 0) {
+              markMessagesAsRead(maxId);
+            }
+          }
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -65,12 +101,27 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
     fetchMessages();
   }, [friendUsername]);
 
+  // when window is un-minimized, mark existing messages as read
+  useEffect(() => {
+    if (!minimized && messages.length > 0) {
+      const friendMsgs = messages.filter((m) => m.sender_id !== myUserId && m.sender_username !== 'ME');
+      if (friendMsgs.length > 0) {
+        const maxId = Math.max(...friendMsgs.map((m) => m.id));
+        if (maxId > 0) {
+          markMessagesAsRead(maxId);
+        }
+      }
+    }
+  }, [minimized]);
+
   // listen for incoming websocket messages.
   useEffect(() => {
-    if (!lastMessage) return;
+    if (!lastMessage || lastProcessedMsgRef.current === lastMessage) return;
 
     // check if it's a DM and if it belongs to this specific chat window
-    if (lastMessage.type === 'direct_message_recv' && lastMessage.payload.username === friendUsername) {
+    if (lastMessage.type === 'direct_message_recv' && lastMessage.payload?.username === friendUsername) {
+      lastProcessedMsgRef.current = lastMessage;
+
       const incomingMsg: Message = {
         id: lastMessage.payload.id,
         sender_id: -1, // We don't have the numeric ID in the WS payload, but that's ok
@@ -81,10 +132,20 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
         sender_username: lastMessage.payload.username
       };
 
-      // Append incoming message to the local list
-      setMessages((prevMessages) => [...prevMessages, incomingMsg]);
+      // Append incoming message to the local list (guarding against duplicate ID)
+      setMessages((prevMessages) => {
+        if (incomingMsg.id && prevMessages.some((m) => m.id === incomingMsg.id)) {
+          return prevMessages;
+        }
+        return [...prevMessages, incomingMsg];
+      });
+
+      // if window is open, mark it as read immediately
+      if (!minimized && incomingMsg.id > 0) {
+        markMessagesAsRead(incomingMsg.id);
+      }
     }
-  }, [lastMessage, friendUsername]);
+  }, [lastMessage, friendUsername, minimized]);
 
   /*
     HANDLER: Sends a new message.
@@ -124,78 +185,96 @@ export default function ChatWindow({ friendUsername, onClose }: ChatWindowProps)
 
   return (
     /* 
-      Main container
+      Main container: shrinks to compact dock tab when minimized
     */
-   <div className="w-80 h-96 border-black border-b-0 flex flex-col shadow-[8px_8px_0_0_#000000] font-sans">
-      {/* HEADER: Shows who we are talking to and the close button */}
-      <div className="flex justify-between items-center p-3 bg-zinc-800 border-b-4 border-black shrink-0">
-        <span className="font-bold text-zinc-100 tracking-widest text-sm">{friendUsername}</span>
-        <button 
-          onClick={onClose} 
-          className="text-red-500 hover:text-red-400 font-bold text-lg leading-none transition-colors"
-        >
-          ✖
-        </button>
+    <div className={`transition-all duration-200 border-4 border-black border-b-0 flex flex-col shadow-[6px_6px_0_0_#000000] font-sans ${
+      minimized ? 'w-56 h-11 bg-zinc-800' : 'w-80 h-96 bg-zinc-900'
+    }`}>
+      {/* HEADER: Clicking anywhere on the top bar toggles minimize, except the X close button */}
+      <div 
+        onClick={toggleMinimize}
+        className={`flex justify-between items-center px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700/80 ${minimized ? '' : 'border-b-4 border-black'} shrink-0 select-none cursor-pointer transition-colors`}
+        title={minimized ? "Click to expand" : "Click to minimize"}
+      >
+        <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+          <span className="font-bold text-zinc-100 tracking-widest text-xs uppercase truncate">
+            {friendUsername}
+          </span>
+          {Boolean(minimized && unreadCount > 0) && (
+            <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center shrink-0">
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }} 
+            className="text-red-500 hover:text-red-400 font-bold text-sm leading-none transition-colors px-1 py-0.5"
+            title="Close"
+          >
+            ✖
+          </button>
+        </div>
       </div>
 
-      {/* MESSAGE LOG: flex-1 takes remaining space, overflow-y-auto makes it scrollable */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4 bg-zinc-900 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:bg-zinc-600">
-        
-        {isLoading && <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest text-center border-2 border-zinc-800 p-2">Loading...</span>}
-        {error && <span className="text-red-400 text-xs font-bold uppercase tracking-widest text-center border-2 border-red-900 p-2">{error}</span>}
-        
-        {!isLoading && !error && messages.map((msg) => {
-          
-          // LOGIC: Determine if the message is sent by us
-          const isMe = msg.sender_id === myUserId || msg.sender_username === 'ME';
+      {!minimized && (
+        <>
+          {/* MESSAGE LOG: flex-1 takes remaining space, overflow-y-auto makes it scrollable */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-4 bg-zinc-900 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:bg-zinc-600">
+            {isLoading && <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest text-center border-2 border-zinc-800 p-2">Loading...</span>}
+            {error && <span className="text-red-400 text-xs font-bold uppercase tracking-widest text-center border-2 border-red-900 p-2">{error}</span>}
+            
+            {!isLoading && !error && messages.map((msg) => {
+              // LOGIC: Determine if the message is sent by us
+              const isMe = msg.sender_id === myUserId || msg.sender_username === 'ME';
 
-          return (
-            // WRAPPER: Aligns the bubble to the left or right
-            <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-              
-              {/* BUBBLE: Slightly different background color for our own messages */}
-              <div className={`flex flex-col border-2 border-black p-2 shadow-[2px_2px_0_0_#000000] w-fit max-w-[90%] ${
-                isMe ? 'bg-zinc-700' : 'bg-zinc-800'
-              }`}>
-                
-                <div className={`flex justify-between items-end gap-4 mb-1 border-b pb-1 ${isMe ? 'border-zinc-600' : 'border-zinc-700'}`}>
-                  
-                  {/* SENDER NAME: Show "ME" or the friend's username */}
-                  <span className={`font-bold text-[10px] tracking-wider ${isMe ? 'text-lime-500' : 'text-amber-500'}`}>
-                    {isMe ? 'ME' : friendUsername}
-                  </span>
-                  
-                  <span className="text-zinc-400 font-bold text-[10px]">
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  
+              return (
+                // WRAPPER: Aligns the bubble to the left or right
+                <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                  {/* BUBBLE: Slightly different background color for our own messages */}
+                  <div className={`flex flex-col border-2 border-black p-2 shadow-[2px_2px_0_0_#000000] w-fit max-w-[90%] ${
+                    isMe ? 'bg-zinc-700' : 'bg-zinc-800'
+                  }`}>
+                    <div className={`flex justify-between items-end gap-4 mb-1 border-b pb-1 ${isMe ? 'border-zinc-600' : 'border-zinc-700'}`}>
+                      {/* SENDER NAME: Show "ME" or the friend's username */}
+                      <span className={`font-bold text-[10px] tracking-wider ${isMe ? 'text-lime-500' : 'text-amber-500'}`}>
+                        {isMe ? 'ME' : friendUsername}
+                      </span>
+                      <span className="text-zinc-400 font-bold text-[10px]">
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <span className="text-zinc-100 text-sm">{msg.content}</span>
+                  </div>
                 </div>
-                <span className="text-zinc-100 text-sm">{msg.content}</span>
-              </div>
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
 
-      {/* INPUT AREA: Matches old Chat.tsx logic */}
-     <div className="p-3 bg-zinc-800 border-t-4 border-black flex gap-2 shrink-0">
-        <input
-          type="text"
-          value={currentMessage}
-          onChange={(e) => setCurrentMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          placeholder="MESSAGE..."
-          className="w-full flex-1 p-2 bg-zinc-900 text-white font-bold text-xs tracking-wider border-2 border-black outline-none focus:border-lime-700 transition-colors"
-        />
-        <button
-          onClick={handleSendMessage}
-          className="bg-lime-700 text-white font-bold uppercase tracking-widest px-4 py-2 border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-lime-600 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all text-xs"
-        >
-          Send
-        </button>
-      </div>
-      
+          {/* INPUT AREA: Matches old Chat.tsx logic */}
+          <div className="p-3 bg-zinc-800 border-t-4 border-black flex gap-2 shrink-0">
+            <input
+              type="text"
+              value={currentMessage}
+              onChange={(e) => setCurrentMessage(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="MESSAGE..."
+              className="w-full flex-1 p-2 bg-zinc-900 text-white font-bold text-xs tracking-wider border-2 border-black outline-none focus:border-lime-700 transition-colors"
+            />
+            <button
+              onClick={handleSendMessage}
+              className="bg-lime-700 text-white font-bold uppercase tracking-widest px-4 py-2 border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-lime-600 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all text-xs"
+            >
+              Send
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

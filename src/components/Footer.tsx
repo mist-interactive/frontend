@@ -5,9 +5,10 @@ interface FooterProps {
   isFriendsOpen?: boolean;
   onToggleFriends?: () => void;
   isGame?: boolean;
+  totalUnreadCount?: number;
 }
 
-export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends, isGame }: FooterProps) {
+export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends, isGame, totalUnreadCount = 0 }: FooterProps) {
   // in game view, only render standalone friends button if authenticated
   if (isGame) {
     if (!isAuthenticated || !onToggleFriends) {
@@ -24,6 +25,11 @@ export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends
       >
         <span>👥</span>
         <span>Friends</span>
+        {totalUnreadCount > 0 && (
+          <span className="ml-1 px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
+            {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+          </span>
+        )}
       </button>
     );
   }
@@ -45,6 +51,11 @@ export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends
           >
             <span>👥</span>
             <span>Friends</span>
+            {totalUnreadCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
+                {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+              </span>
+            )}
           </button>
         )}
 
