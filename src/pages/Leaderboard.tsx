@@ -160,7 +160,7 @@ export default function Leaderboard() {
       <div className="max-w-[1200px] mx-auto space-y-8">
 
         {/* Header Banner */}
-        <div className="bg-zinc-800 border-4 border-black p-6 sm:p-8 shadow-[8px_8px_0_0_#000000] flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bg-zinc-800 border-4 border-black p-5 sm:p-8 shadow-[6px_6px_0_0_#000000] sm:shadow-[8px_8px_0_0_#000000] flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="inline-block bg-lime-500 text-black font-black text-xs px-2.5 py-1 border-2 border-black uppercase tracking-widest">
               Global Rankings
@@ -174,10 +174,10 @@ export default function Leaderboard() {
           </div>
 
           {/* Sort Control Tabs */}
-          <div className="flex bg-zinc-900 border-4 border-black p-1.5 shadow-[4px_4px_0_0_#000000] self-start md:self-center shrink-0">
+          <div className="flex flex-wrap sm:flex-nowrap bg-zinc-900 border-4 border-black p-1 sm:p-1.5 shadow-[4px_4px_0_0_#000000] w-full md:w-auto self-start md:self-center shrink-0">
             <button
               onClick={() => setSortBy("wins")}
-              className={`px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-black uppercase tracking-widest transition-all ${
                 sortBy === "wins"
                   ? "bg-lime-500 text-black shadow-[2px_2px_0_0_#000000] border-2 border-black"
                   : "text-zinc-400 hover:text-white"
@@ -187,7 +187,7 @@ export default function Leaderboard() {
             </button>
             <button
               onClick={() => setSortBy("win_rate")}
-              className={`px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-black uppercase tracking-widest transition-all ${
                 sortBy === "win_rate"
                   ? "bg-lime-500 text-black shadow-[2px_2px_0_0_#000000] border-2 border-black"
                   : "text-zinc-400 hover:text-white"
@@ -197,7 +197,7 @@ export default function Leaderboard() {
             </button>
             <button
               onClick={() => setSortBy("xp")}
-              className={`px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 sm:flex-none text-center px-3 sm:px-4 py-2 text-[11px] sm:text-xs font-black uppercase tracking-widest transition-all ${
                 sortBy === "xp"
                   ? "bg-lime-500 text-black shadow-[2px_2px_0_0_#000000] border-2 border-black"
                   : "text-zinc-400 hover:text-white"
@@ -372,7 +372,7 @@ export default function Leaderboard() {
             </h2>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[620px] text-left border-collapse">
                 <thead>
                   <tr className="border-b-4 border-black text-[11px] font-black uppercase tracking-widest text-zinc-400">
                     <th className="py-3 px-3">Rank</th>

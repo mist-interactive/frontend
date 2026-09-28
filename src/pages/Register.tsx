@@ -110,9 +110,9 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-900 flex items-center justify-center p-4 font-sans">
-      <div className="bg-zinc-800 border-4 border-black p-8 w-full max-w-md shadow-[8px_8px_0_0_#000000]">
-        <h2 className="text-3xl font-bold text-zinc-100 uppercase tracking-widest text-center mb-8">
+    <div className="min-h-full py-8 bg-zinc-900 flex items-center justify-center p-4 font-sans">
+      <div className="bg-zinc-800 border-4 border-black p-5 sm:p-8 w-full max-w-md shadow-[6px_6px_0_0_#000000] sm:shadow-[8px_8px_0_0_#000000]">
+        <h2 className="text-2xl sm:text-3xl font-bold text-zinc-100 uppercase tracking-widest text-center mb-6 sm:mb-8">
           Register
         </h2>
 

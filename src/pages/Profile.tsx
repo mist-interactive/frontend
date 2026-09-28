@@ -846,11 +846,11 @@ export default function Profile() {
                   </div>
                 </label>
 
-                <div className="flex flex-wrap gap-4 mt-2">
+                <div className="flex flex-wrap gap-3 mt-2">
                   <button
                     onClick={handleSave}
                     disabled={isSaving || Boolean(bioError) || Boolean(emailError) || (Boolean(userData.bio) && userData.bio!.length > 500)}
-                    className="px-6 py-2.5 bg-lime-600 text-black font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs w-auto"
+                    className="flex-1 sm:flex-none px-6 py-2.5 bg-lime-600 text-black font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs text-center"
                   >
                     {isSaving ? "Saving..." : "Save Profile"}
                   </button>
@@ -870,7 +870,7 @@ export default function Profile() {
                       setIsEditing(false);
                     }}
                     disabled={isSaving}
-                    className="px-6 py-2.5 bg-zinc-700 text-white font-bold uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs w-auto"
+                    className="flex-1 sm:flex-none px-6 py-2.5 bg-zinc-700 text-white font-bold uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs text-center"
                   >
                     Cancel
                   </button>
@@ -1296,7 +1296,7 @@ export default function Profile() {
         {/* Two-step Account Deletion Confirmation Modal */}
         {isDeleteModalOpen && userData && (
           <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 font-sans">
-            <div className="bg-zinc-900 border-4 border-black p-6 sm:p-8 w-full max-w-lg shadow-[8px_8px_0_0_#000000] text-zinc-100 space-y-6">
+            <div className="bg-zinc-900 border-4 border-black p-5 sm:p-8 w-full max-w-lg shadow-[6px_6px_0_0_#000000] sm:shadow-[8px_8px_0_0_#000000] text-zinc-100 space-y-6 max-h-[90vh] overflow-y-auto">
               
               {/* Header */}
               <div className="flex items-start justify-between gap-4 border-b-2 border-zinc-800 pb-4">

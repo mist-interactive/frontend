@@ -2,23 +2,23 @@ import { Link } from 'react-router-dom';
 
 export default function TermsOfService() {
   return (
-    <div className="p-6 md:p-12 bg-zinc-950 text-zinc-100 min-h-screen font-sans">
-      <div className="max-w-4xl mx-auto bg-zinc-900 border-4 border-black shadow-[8px_8px_0_0_#000000] p-6 md:p-10 flex flex-col gap-8">
+    <div className="p-4 sm:p-6 md:p-12 bg-zinc-950 text-zinc-100 min-h-screen font-sans">
+      <div className="max-w-4xl mx-auto bg-zinc-900 border-4 border-black shadow-[6px_6px_0_0_#000000] sm:shadow-[8px_8px_0_0_#000000] p-4 sm:p-6 md:p-10 flex flex-col gap-8">
         
         {/* header section */}
         <div className="border-b-4 border-black pb-6">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-xs font-bold uppercase tracking-widest text-lime-500 bg-black px-3 py-1 border border-zinc-700">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <span className="text-xs font-bold uppercase tracking-widest text-lime-500 bg-black px-3 py-1 border border-zinc-700 w-fit">
               Legal Documentation
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
               Last Updated: September 2026
             </span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold uppercase tracking-widest text-white">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold uppercase tracking-widest text-white">
             Terms of Service
           </h1>
-          <p className="text-zinc-400 text-sm mt-2">
+          <p className="text-zinc-400 text-xs sm:text-sm mt-2">
             Please read these terms carefully before participating in matches or using Memoir 3167.
           </p>
         </div>

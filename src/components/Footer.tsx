@@ -36,14 +36,14 @@ export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends
 
   return (
     // tactical footer dock with integrated friends toggle and legal links
-    <footer className="w-full bg-zinc-900 border-t-4 border-black h-12 flex items-center justify-between text-zinc-400 font-sans shrink-0 z-30">
+    <footer className="w-full bg-zinc-900 border-t-4 border-black h-12 flex items-center justify-between text-zinc-400 font-sans shrink-0 z-30 px-2 sm:px-4">
       
       {/* left: friends toggle (when logged in) + branding */}
-      <div className="flex items-center h-full">
+      <div className="flex items-center h-full min-w-0">
         {isAuthenticated && onToggleFriends && (
           <button 
             onClick={onToggleFriends}
-            className={`h-full px-4 flex items-center gap-2 border-r-4 border-black font-bold uppercase tracking-wider text-xs transition-colors ${
+            className={`h-full px-2.5 sm:px-4 flex items-center gap-1.5 sm:gap-2 border-r-4 border-black font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-colors shrink-0 ${
               isFriendsOpen 
                 ? 'bg-lime-700 text-white' 
                 : 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700'
@@ -52,34 +52,34 @@ export default function Footer({ isAuthenticated, isFriendsOpen, onToggleFriends
             <span>👥</span>
             <span>Friends</span>
             {totalUnreadCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
+              <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
                 {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
               </span>
             )}
           </button>
         )}
 
-        <div className="flex items-center gap-2 px-4 text-xs">
-          <span className="font-bold text-zinc-200 uppercase tracking-widest">Memoir 3167</span>
-          <span className="text-zinc-600">•</span>
-          <span className="text-zinc-500 uppercase tracking-wider hidden sm:inline">ft_transcendence</span>
+        <div className="flex items-center gap-2 px-2 sm:px-4 text-[11px] sm:text-xs truncate">
+          <span className="font-bold text-zinc-200 uppercase tracking-widest hidden sm:inline">Memoir 3167</span>
+          <span className="text-zinc-600 hidden sm:inline">•</span>
+          <span className="text-zinc-500 uppercase tracking-wider hidden md:inline">ft_transcendence</span>
         </div>
       </div>
 
       {/* right: legal links */}
-      <div className="flex items-center gap-4 sm:gap-6 font-bold uppercase tracking-wider text-xs px-4">
+      <div className="flex items-center gap-2 sm:gap-6 font-bold uppercase tracking-wider text-[10px] sm:text-xs shrink-0">
         <Link 
           to="/terms" 
           className="hover:text-lime-400 transition-colors"
         >
-          Terms of Service
+          Terms<span className="hidden sm:inline"> of Service</span>
         </Link>
         <span className="text-zinc-700">•</span>
         <Link 
           to="/privacy" 
           className="hover:text-lime-400 transition-colors"
         >
-          Privacy Policy
+          Privacy<span className="hidden sm:inline"> Policy</span>
         </Link>
       </div>
 

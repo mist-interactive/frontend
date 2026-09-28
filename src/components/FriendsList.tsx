@@ -457,7 +457,7 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
 
   return (
     // main tactical drawer docked between navbar and footer
-    <div className={`absolute left-0 top-0 bottom-0 w-80 bg-zinc-900 border-r-4 border-black z-50 transition-transform duration-300 overflow-hidden font-sans flex flex-col shadow-[8px_0_0_0_#000000] ${
+    <div className={`absolute left-0 top-0 bottom-0 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-zinc-900 border-r-4 border-black z-50 transition-transform duration-300 overflow-hidden font-sans flex flex-col shadow-[8px_0_0_0_#000000] ${
       isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
     }`}>
 
