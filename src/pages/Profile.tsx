@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import reactLogo from '../assets/react.svg';
 import { apiFetch } from "../utils/apiFetch";
-import { getAuthUser } from "../utils/auth";
+import { getAuthUser, clearAuth } from "../utils/auth";
 
 interface UserStats {
   games_played: number;
@@ -195,6 +195,75 @@ export default function Profile() {
   const [bioError, setBioError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
+
+  // state for account deletion modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await apiFetch('/api/protected/profile', {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Failed to delete account");
+        throw new Error(errText || "Failed to delete account");
+      }
+      clearAuth();
+      window.location.href = "/";
+    } catch (err: any) {
+      console.error("Account deletion failed:", err);
+      setDeleteError(err.message || "An unexpected error occurred while deleting your account.");
+      setIsDeleting(false);
+    }
+  };
+
+  const confirmInputRef = useRef<HTMLInputElement>(null);
+
+  // handle keyboard navigation (Enter to accept/proceed, Escape to cancel) in delete modal
+  useEffect(() => {
+    if (!isDeleteModalOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (!isDeleting) {
+          setIsDeleteModalOpen(false);
+          setDeleteStep(1);
+          setDeleteConfirmText("");
+          setDeleteError(null);
+        }
+      } else if (e.key === "Enter") {
+        if (deleteStep === 1) {
+          e.preventDefault();
+          setDeleteStep(2);
+        } else if (deleteStep === 2) {
+          const isConfirmed =
+            deleteConfirmText.trim() === "DELETE" ||
+            Boolean(userData && deleteConfirmText.trim().toLowerCase() === userData.username.toLowerCase());
+          if (isConfirmed && !isDeleting) {
+            e.preventDefault();
+            handleDeleteAccount();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDeleteModalOpen, deleteStep, deleteConfirmText, isDeleting, userData]);
+
+  useEffect(() => {
+    if (isDeleteModalOpen && deleteStep === 2) {
+      setTimeout(() => {
+        confirmInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isDeleteModalOpen, deleteStep]);
 
   // clean up blob preview url to prevent memory leaks
   useEffect(() => {
@@ -794,19 +863,32 @@ export default function Profile() {
                     </span>
                   </div>
 
-                  {!username && (
-                    <button
-                      onClick={() => {
-                        setInitialUserData(userData);
-                        setBioError(null);
-                        setEmailError(null);
-                        setEditGeneralError(null);
-                        setIsEditing(true);
-                      }}
-                      className="px-4 py-2 bg-zinc-700 text-white font-bold uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] hover:bg-zinc-600 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs shrink-0 w-auto"
-                    >
-                      Edit Profile
-                    </button>
+                  {isOwnProfile && (
+                    <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          setInitialUserData(userData);
+                          setBioError(null);
+                          setEmailError(null);
+                          setEditGeneralError(null);
+                          setIsEditing(true);
+                        }}
+                        className="px-4 py-2 bg-zinc-700 text-white font-bold uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] hover:bg-zinc-600 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs w-full sm:w-auto text-center"
+                      >
+                        Edit Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteStep(1);
+                          setDeleteConfirmText("");
+                          setDeleteError(null);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="px-4 py-2 bg-rose-700 text-white font-bold uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] hover:bg-rose-600 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs w-full sm:w-auto text-center"
+                      >
+                        Delete Account
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -1170,6 +1252,143 @@ export default function Profile() {
             )}
           </div>
         </div>
+
+        {/* Two-step Account Deletion Confirmation Modal */}
+        {isDeleteModalOpen && userData && (
+          <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 font-sans">
+            <div className="bg-zinc-900 border-4 border-black p-6 sm:p-8 w-full max-w-lg shadow-[8px_8px_0_0_#000000] text-zinc-100 space-y-6">
+              
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4 border-b-2 border-zinc-800 pb-4">
+                <div>
+                  <div className="inline-block bg-rose-600 text-black font-black text-[10px] px-2 py-0.5 border border-black uppercase tracking-widest mb-1.5">
+                    Danger Zone • Step {deleteStep} of 2
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-rose-500">
+                    {deleteStep === 1 ? "Delete Account" : "Confirm Permanent Deletion"}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!isDeleting) {
+                      setIsDeleteModalOpen(false);
+                      setDeleteStep(1);
+                      setDeleteConfirmText("");
+                      setDeleteError(null);
+                    }
+                  }}
+                  disabled={isDeleting}
+                  aria-label="Close modal"
+                  className="text-zinc-400 hover:text-white font-black text-xl leading-none px-2 py-1 transition-colors disabled:opacity-30"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 bg-rose-950/80 border-2 border-rose-600 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                  {deleteError}
+                </div>
+              )}
+
+              {/* Step 1: Warning & GDPR Disclosure */}
+              {deleteStep === 1 ? (
+                <div className="space-y-4">
+                  <div className="bg-rose-950/30 border-2 border-rose-800/80 p-4 space-y-2 text-sm text-zinc-300">
+                    <p className="font-bold text-rose-300 uppercase tracking-wide">
+                      Warning: This action is permanent and cannot be undone.
+                    </p>
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      In accordance with GDPR ("Right to be Forgotten"), executing this action will trigger the following:
+                    </p>
+                    <ul className="text-xs space-y-2 pt-1 list-disc list-inside text-zinc-300">
+                      <li>
+                        <strong className="text-zinc-100">Identity Purge:</strong> Your email, bio, and avatar will be permanently deleted.
+                      </li>
+                      <li>
+                        <strong className="text-zinc-100">Stats Anonymization:</strong> Your match history and records will be preserved for integrity but anonymized under a generic identifier (<span className="font-mono text-zinc-400">deleted_user_X</span>).
+                      </li>
+                      <li>
+                        <strong className="text-zinc-100">Session Termination:</strong> All active sessions will be revoked and you will be signed out immediately.
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsDeleteModalOpen(false)}
+                      className="flex-1 py-3 px-4 bg-zinc-700 hover:bg-zinc-600 text-white font-bold uppercase tracking-widest text-xs border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-center"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={() => setDeleteStep(2)}
+                      className="flex-1 py-3 px-4 bg-rose-700 hover:bg-rose-600 text-white font-black uppercase tracking-widest text-xs border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-center"
+                    >
+                      I Understand, Continue
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Step 2: Verification by Typing DELETE or Username */
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const isConfirmed =
+                      deleteConfirmText.trim() === "DELETE" ||
+                      Boolean(userData && deleteConfirmText.trim().toLowerCase() === userData.username.toLowerCase());
+                    if (isConfirmed && !isDeleting) {
+                      handleDeleteAccount();
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="bg-zinc-950 border-2 border-black p-4 space-y-3">
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      To confirm that you want to permanently delete your account, type <span className="font-mono font-bold text-rose-400">DELETE</span> or your username (<strong className="text-white font-mono">{userData.username}</strong>) below:
+                    </p>
+                    <input
+                      ref={confirmInputRef}
+                      type="text"
+                      autoFocus
+                      disabled={isDeleting}
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder={`Type DELETE or ${userData.username}`}
+                      className="w-full bg-zinc-900 border-4 border-black p-3 text-white font-mono uppercase tracking-widest text-sm outline-none focus:border-rose-500 transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteStep(1)}
+                      disabled={isDeleting}
+                      className="flex-1 py-3 px-4 bg-zinc-700 hover:bg-zinc-600 text-white font-bold uppercase tracking-widest text-xs border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all disabled:opacity-50 text-center"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={
+                        isDeleting ||
+                        (deleteConfirmText.trim() !== "DELETE" &&
+                          deleteConfirmText.trim().toLowerCase() !== userData.username.toLowerCase())
+                      }
+                      className="flex-1 py-3 px-4 bg-rose-700 hover:bg-rose-600 text-white font-black uppercase tracking-widest text-xs border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed text-center"
+                    >
+                      {isDeleting ? "Deleting..." : "Permanently Delete"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
