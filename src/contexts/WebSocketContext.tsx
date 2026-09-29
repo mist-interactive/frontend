@@ -30,13 +30,13 @@ export const useWebSocket = () => {
   return useContext(WebSocketContext);
 };
 
-// provider component actual I/O logic.
+// provider component actual i/o logic
 export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
-  // useState is used ONLY for incoming data that requires UI re-renders.
+  // state for incoming data that requires ui re-renders
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<number | null>(null); // global match state
   
-  // useRef holds the active WebSocket connection.
+  // ref holds the active websocket connection
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,7 +45,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     let reconnectDelay = 2000;
 
     const connect = async () => {
-      // retrieve a guaranteed valid (auto-renewed if expired) JWT token
+      // retrieve valid auto-renewed token
       const token = await getValidToken();
       if (!token) {
         console.log("WS connection aborted: no valid token found. supplying safe defaults.");
@@ -59,10 +59,10 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // construct the connection URL.
+      // construct the connection url
       const url = `wss://localhost:8443/api/ws?token=${token}`;
 
-      // open the connection.
+      // open the connection
       const socket = new WebSocket(url);
       ws.current = socket;
 
@@ -71,7 +71,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         reconnectDelay = 2000; // reset delay on successful connection
       };
 
-      // define the message handler.
+      // define the message handler
       socket.onmessage = (event) => {
         try {
           const data: WSMessage = JSON.parse(event.data);
@@ -94,7 +94,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         }
       };
 
-      // error and closure logging.
+      // error and closure logging
       socket.onerror = (error) => {
         console.error("[WS Error]:", error);
       };
@@ -115,7 +115,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
 
     connect();
 
-    // the cleanup function.
+    // cleanup function
     return () => {
       isMounted = false;
       if (reconnectTimeoutRef.current) {
@@ -125,11 +125,11 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         ws.current.close();
       }
     };
-  }, []); // the empty dependency array ensures this effect runs exactly once on mount.
+  }, []); // run effect once on mount
 
-  // function exposed to child components to send data to the backend.
+  // function exposed to send data to the backend
   const sendMessage = (msg: WSMessage) => {
-    // verify the connection exists and is in the OPEN state (readyState === 1)
+    // verify connection is open before sending
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(msg));
     } else {
@@ -137,7 +137,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // wrap the children in the Provider, passing down the exposed functions and state.
+  // wrap children in provider passing down state
   return (
     <WebSocketContext.Provider value={{ sendMessage, lastMessage, activeMatchId }}>
       {children}
