@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import { getValidToken } from '../utils/auth';
 
 // define data struct that mirrors backend JSON
 export interface WSMessage {
@@ -37,55 +38,89 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
   
   // useRef holds the active WebSocket connection.
   const ws = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // retrieve the authentication token.
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.log("WS connection aborted: no token found. supplying safe defaults.");
-      return;
-    }
+    let isMounted = true;
+    let reconnectDelay = 2000;
 
-    // construct the connection URL.
-    const url = `wss://localhost:8443/api/ws?token=${token}`;
-
-    // open the connection.
-    ws.current = new WebSocket(url);
-
-    // define the message handler.
-    ws.current.onmessage = (event) => {
-      try {
-        const data: WSMessage = JSON.parse(event.data);
-        console.log("[WS Received]:", data);
-
-        // intercept and handle match state globally
-        switch (data.type) {
-          case 'active_match':
-          case 'match_started':
-            setActiveMatchId(data.payload.match_id);
-            break;
-          case 'match_finished':
-            setActiveMatchId(null);
-            break;
-        }
-
-        setLastMessage(data); // expose new data to the rest of the application
-      } catch (err) {
-        console.error("Failed to parse incoming WS message:", err);
+    const connect = async () => {
+      // retrieve a guaranteed valid (auto-renewed if expired) JWT token
+      const token = await getValidToken();
+      if (!token) {
+        console.log("WS connection aborted: no valid token found. supplying safe defaults.");
+        return;
       }
+
+      if (!isMounted) return;
+
+      // prevent redundant connections if socket is already open or connecting
+      if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
+      // construct the connection URL.
+      const url = `wss://localhost:8443/api/ws?token=${token}`;
+
+      // open the connection.
+      const socket = new WebSocket(url);
+      ws.current = socket;
+
+      socket.onopen = () => {
+        console.log("[WS Connected]");
+        reconnectDelay = 2000; // reset delay on successful connection
+      };
+
+      // define the message handler.
+      socket.onmessage = (event) => {
+        try {
+          const data: WSMessage = JSON.parse(event.data);
+          console.log("[WS Received]:", data);
+
+          // intercept and handle match state globally
+          switch (data.type) {
+            case 'active_match':
+            case 'match_started':
+              setActiveMatchId(data.payload.match_id);
+              break;
+            case 'match_finished':
+              setActiveMatchId(null);
+              break;
+          }
+
+          setLastMessage(data); // expose new data to the rest of the application
+        } catch (err) {
+          console.error("Failed to parse incoming WS message:", err);
+        }
+      };
+
+      // error and closure logging.
+      socket.onerror = (error) => {
+        console.error("[WS Error]:", error);
+      };
+
+      socket.onclose = () => {
+        console.log("[WS Closed]");
+        // auto-reconnect with fresh token if component is still mounted
+        if (isMounted) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log("[WS Reconnecting...]");
+            connect();
+          }, reconnectDelay);
+          // exponential backoff capped at 10s
+          reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
+        }
+      };
     };
 
-    // error and closure logging.
-    ws.current.onerror = (error) => {
-      console.error("[WS Error]:", error);
-    };
-
-    ws.current.onclose = () => {
-      console.log("[WS Closed]");
-    };
+    connect();
 
     // the cleanup function.
     return () => {
+      isMounted = false;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       if (ws.current) {
         ws.current.close();
       }
