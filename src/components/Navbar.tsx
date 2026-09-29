@@ -39,7 +39,17 @@ export default function Navbar() {
           Memoir3167
         </Link>
 
-        <Link to="/profile" className="text-sm font-bold text-zinc-400 uppercase tracking-widest hover:text-zinc-100 transition-colors">Profile</Link>
+        <Link to="/profile" className={`text-sm font-bold uppercase tracking-widest transition-colors ${
+          location.pathname.startsWith('/profile') ? 'text-lime-400' : 'text-zinc-400 hover:text-zinc-100'
+        }`}>
+          Profile
+        </Link>
+
+        <Link to="/leaderboard" className={`text-sm font-bold uppercase tracking-widest transition-colors ${
+          location.pathname === '/leaderboard' ? 'text-lime-400' : 'text-zinc-400 hover:text-zinc-100'
+        }`}>
+          Leaderboard
+        </Link>
       </div>
 
       {/* conditional reconnect button centered and overlapping */}
