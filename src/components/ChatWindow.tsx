@@ -152,15 +152,16 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
     Currently a stub. Because of our architecture, this will NOT be an HTTP POST.
     It will be a WebSocket transmission to avoid overhead and enable instant two-way delivery.
   */
- const handleSendMessage = () => {
-    if (!currentMessage.trim()) return;
+  const handleSendMessage = () => {
+    const trimmed = currentMessage.trim();
+    if (!trimmed || trimmed.length > 500) return;
     
     // Send the JSON payload exactly as the backend expects
     sendMessage({
       type: "direct_message_send",
       payload: {
         username: friendUsername,
-        content: currentMessage
+        content: trimmed
       }
     });
 
@@ -169,7 +170,7 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
       id: Date.now(), // Temporary fake ID for React keys
       sender_id: 0, // 0 represents "ME" right now
       recipient_id: 0,
-      content: currentMessage,
+      content: trimmed,
       is_read: true,
       created_at: new Date().toISOString(),
       sender_username: "ME"
@@ -236,19 +237,21 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
                 // WRAPPER: Aligns the bubble to the left or right
                 <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                   {/* BUBBLE: Slightly different background color for our own messages */}
-                  <div className={`flex flex-col border-2 border-black p-2 shadow-[2px_2px_0_0_#000000] w-fit max-w-[90%] ${
+                  <div className={`flex flex-col border-2 border-black p-2.5 shadow-[2px_2px_0_0_#000000] w-fit max-w-[85%] min-w-0 ${
                     isMe ? 'bg-zinc-700' : 'bg-zinc-800'
                   }`}>
-                    <div className={`flex justify-between items-end gap-4 mb-1 border-b pb-1 ${isMe ? 'border-zinc-600' : 'border-zinc-700'}`}>
+                    <div className={`flex justify-between items-end gap-3 mb-1 border-b pb-1 min-w-0 ${isMe ? 'border-zinc-600' : 'border-zinc-700'}`}>
                       {/* SENDER NAME: Show "ME" or the friend's username */}
-                      <span className={`font-bold text-[10px] tracking-wider ${isMe ? 'text-lime-500' : 'text-amber-500'}`}>
+                      <span className={`font-bold text-[10px] tracking-wider truncate min-w-0 ${isMe ? 'text-lime-500' : 'text-amber-500'}`}>
                         {isMe ? 'ME' : friendUsername}
                       </span>
-                      <span className="text-zinc-400 font-bold text-[10px]">
+                      <span className="text-zinc-400 font-bold text-[10px] shrink-0">
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <span className="text-zinc-100 text-sm">{msg.content}</span>
+                    <p className="text-zinc-100 text-xs sm:text-sm leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap max-w-full">
+                      {msg.content}
+                    </p>
                   </div>
                 </div>
               );
@@ -257,21 +260,32 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
           </div>
 
           {/* INPUT AREA: Matches old Chat.tsx logic */}
-          <div className="p-3 bg-zinc-800 border-t-4 border-black flex gap-2 shrink-0">
-            <input
-              type="text"
-              value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="MESSAGE..."
-              className="w-full flex-1 p-2 bg-zinc-900 text-white font-bold text-xs tracking-wider border-2 border-black outline-none focus:border-lime-700 transition-colors"
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-lime-700 text-white font-bold uppercase tracking-widest px-4 py-2 border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-lime-600 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all text-xs"
-            >
-              Send
-            </button>
+          <div className="p-3 bg-zinc-800 border-t-4 border-black flex flex-col gap-1 shrink-0">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                maxLength={500}
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="MESSAGE..."
+                className="w-full flex-1 p-2 bg-zinc-900 text-white font-bold text-xs tracking-wider border-2 border-black outline-none focus:border-lime-700 transition-colors"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!currentMessage.trim()}
+                className="bg-lime-700 text-white font-bold uppercase tracking-widest px-4 py-2 border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-lime-600 active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Send
+              </button>
+            </div>
+            {currentMessage.length > 400 && (
+              <div className="flex justify-end text-[9px] font-mono text-zinc-400">
+                <span className={currentMessage.length >= 500 ? "text-rose-400 font-bold" : ""}>
+                  {currentMessage.length}/500
+                </span>
+              </div>
+            )}
           </div>
         </>
       )}

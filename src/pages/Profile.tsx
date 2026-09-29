@@ -172,6 +172,7 @@ export default function Profile() {
 
   // player search state
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // matches and friends state
   const [matches, setMatches] = useState<MatchItem[]>([]);
@@ -399,10 +400,25 @@ export default function Profile() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = searchQuery.trim();
-    if (trimmed) {
-      navigate(`/profile/${trimmed}`);
-      setSearchQuery("");
+    if (!trimmed) {
+      setSearchError("Please enter a username to search.");
+      return;
     }
+    if (trimmed.length < 3) {
+      setSearchError("Username must be at least 3 characters.");
+      return;
+    }
+    if (trimmed.length > 50) {
+      setSearchError("Username cannot exceed 50 characters.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      setSearchError("Only letters, numbers, _ and - are allowed.");
+      return;
+    }
+    setSearchError(null);
+    navigate(`/profile/${trimmed}`);
+    setSearchQuery("");
   };
 
   // handle posting a comment to backend
@@ -649,21 +665,33 @@ export default function Profile() {
             >
               ← Back to My Profile
             </Link>
-            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="SEARCH PLAYER USERNAME..."
-                className="bg-zinc-900 border-2 border-black px-3 py-1.5 outline-none focus:border-lime-500 text-white tracking-wider text-xs font-bold"
-              />
-              <button
-                type="submit"
-                className="bg-lime-600 hover:bg-lime-500 text-black font-black uppercase tracking-wider px-4 py-1.5 border-2 border-black shadow-[2px_2px_0_0_#000000] text-xs"
-              >
-                Search
-              </button>
-            </form>
+            <div className="flex flex-col sm:items-end gap-1">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  maxLength={50}
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (searchError) setSearchError(null);
+                  }}
+                  placeholder="SEARCH PLAYER USERNAME..."
+                  className={`bg-zinc-900 border-2 ${searchError ? "border-rose-500" : "border-black"} px-3 py-1.5 outline-none focus:border-lime-500 text-white tracking-wider text-xs font-bold`}
+                />
+                <button
+                  type="submit"
+                  disabled={!searchQuery.trim()}
+                  className="bg-lime-600 hover:bg-lime-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black uppercase tracking-wider px-4 py-1.5 border-2 border-black shadow-[2px_2px_0_0_#000000] text-xs"
+                >
+                  Search
+                </button>
+              </form>
+              {searchError && (
+                <span className="text-[11px] text-rose-400 font-bold tracking-wider">
+                  {searchError}
+                </span>
+              )}
+            </div>
           </div>
           <div className="p-8 bg-zinc-800 border-4 border-black text-red-400 font-bold uppercase tracking-widest text-center shadow-[6px_6px_0_0_#000000]">
             Player profile not found.
@@ -693,21 +721,33 @@ export default function Profile() {
             )}
           </div>
 
-          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full sm:w-auto">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="SEARCH PLAYER..."
-              className="bg-zinc-900 border-2 border-black px-3 py-1.5 outline-none focus:border-lime-500 text-white tracking-wider text-xs font-bold w-full sm:w-64"
-            />
-            <button
-              type="submit"
-              className="bg-lime-600 hover:bg-lime-500 text-black font-black uppercase tracking-wider px-4 py-1.5 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs shrink-0"
-            >
-              Search
-            </button>
-          </form>
+          <div className="flex flex-col sm:items-end gap-1 w-full sm:w-auto">
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="text"
+                maxLength={50}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (searchError) setSearchError(null);
+                }}
+                placeholder="SEARCH PLAYER..."
+                className={`bg-zinc-900 border-2 ${searchError ? "border-rose-500" : "border-black"} px-3 py-1.5 outline-none focus:border-lime-500 text-white tracking-wider text-xs font-bold w-full sm:w-64`}
+              />
+              <button
+                type="submit"
+                disabled={!searchQuery.trim()}
+                className="bg-lime-600 hover:bg-lime-500 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black uppercase tracking-wider px-4 py-1.5 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs shrink-0"
+              >
+                Search
+              </button>
+            </form>
+            {searchError && (
+              <span className="text-[11px] text-rose-400 font-bold tracking-wider">
+                {searchError}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Top Hero Card (Avatar, Info, Progress, and Combat Stats) */}
