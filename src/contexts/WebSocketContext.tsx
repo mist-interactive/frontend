@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 // define data struct that mirrors backend JSON
 export interface WSMessage {
@@ -46,8 +46,10 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // construct the connection URL.
-    const url = `wss://localhost:8443/api/ws?token=${token}`;
+    // construct the connection URL dynamically based on current protocol and host
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const url = `${protocol}//${host}/api/ws?token=${token}`;
 
     // open the connection.
     ws.current = new WebSocket(url);

@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import GameLayout from './layouts/GameLayout';
-import StandardLayout from './layouts/StandardLayout';
 import GlobalLayout from './layouts/GlobalLayout';
 import Game from './pages/Game';
 import Home from './pages/Home';
