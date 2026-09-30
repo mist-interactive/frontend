@@ -40,41 +40,23 @@ export default function Home() {
         </p>
 
         {/* primary call to action buttons */}
-        <div className="flex flex-wrap gap-4 justify-center items-center mb-10">
-          {isAuthenticated ? (
-            <>
-              <Link
-                to="/profile"
-                className="bg-lime-700 text-white font-bold uppercase tracking-widest px-8 py-3.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all flex items-center gap-2 text-sm sm:text-base"
-              >
-                <span>Command Profile</span>
-                <span className="text-lime-200">→</span>
-              </Link>
-              <Link
-                to="/game"
-                className="bg-zinc-800 text-zinc-100 font-bold uppercase tracking-widest px-8 py-3.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-700 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-sm sm:text-base"
-              >
-                Launch Battlefield
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/register"
-                className="bg-lime-700 text-white font-bold uppercase tracking-widest px-8 py-3.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all flex items-center gap-2 text-sm sm:text-base"
-              >
-                <span>Enlist Now</span>
-                <span className="text-lime-200">→</span>
-              </Link>
-              <Link
-                to="/login"
-                className="bg-zinc-800 text-zinc-100 font-bold uppercase tracking-widest px-8 py-3.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-700 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-sm sm:text-base"
-              >
-                Operative Login
-              </Link>
-            </>
-          )}
-        </div>
+        {!isAuthenticated && (
+          <div className="flex flex-wrap gap-4 justify-center items-center mb-10">
+            <Link
+              to="/register"
+              className="bg-lime-700 text-white font-bold uppercase tracking-widest px-8 py-3.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-600 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all flex items-center gap-2 text-sm sm:text-base"
+            >
+              <span>Enlist Now</span>
+              <span className="text-lime-200">→</span>
+            </Link>
+            <Link
+              to="/login"
+              className="bg-zinc-800 text-zinc-100 font-bold uppercase tracking-widest px-8 py-3.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-zinc-700 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-sm sm:text-base"
+            >
+              Operative Login
+            </Link>
+          </div>
+        )}
 
         {/* wide tactical gameplay video container */}
         <div className="w-full max-w-5xl xl:max-w-6xl bg-zinc-900 border-4 border-black shadow-[8px_8px_0_0_#000000] flex flex-col overflow-hidden text-left">
