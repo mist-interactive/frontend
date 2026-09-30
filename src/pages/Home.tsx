@@ -122,9 +122,6 @@ export default function Home() {
           {/* feature card 1 */}
           <div className="bg-zinc-900 border-4 border-black p-6 shadow-[6px_6px_0_0_#000000] flex flex-col justify-between">
             <div>
-              <div className="w-10 h-10 bg-zinc-800 border-2 border-black flex items-center justify-center text-xl mb-4 shadow-[2px_2px_0_0_#000000]">
-                🎯
-              </div>
               <h3 className="text-lg font-bold uppercase tracking-wider text-lime-400 mb-2">
                 Card Command System
               </h3>
@@ -140,9 +137,6 @@ export default function Home() {
           {/* feature card 2 */}
           <div className="bg-zinc-900 border-4 border-black p-6 shadow-[6px_6px_0_0_#000000] flex flex-col justify-between">
             <div>
-              <div className="w-10 h-10 bg-zinc-800 border-2 border-black flex items-center justify-center text-xl mb-4 shadow-[2px_2px_0_0_#000000]">
-                ⚔️
-              </div>
               <h3 className="text-lg font-bold uppercase tracking-wider text-lime-400 mb-2">
                 1v1 Tactical Duels
               </h3>
@@ -158,9 +152,6 @@ export default function Home() {
           {/* feature card 3 */}
           <div className="bg-zinc-900 border-4 border-black p-6 shadow-[6px_6px_0_0_#000000] flex flex-col justify-between">
             <div>
-              <div className="w-10 h-10 bg-zinc-800 border-2 border-black flex items-center justify-center text-xl mb-4 shadow-[2px_2px_0_0_#000000]">
-                🛡️
-              </div>
               <h3 className="text-lg font-bold uppercase tracking-wider text-lime-400 mb-2">
                 War Room & Profiles
               </h3>
