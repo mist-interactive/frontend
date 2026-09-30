@@ -48,7 +48,6 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
       // retrieve valid auto-renewed token
       const token = await getValidToken();
       if (!token) {
-        console.log("WS connection aborted: no valid token found. supplying safe defaults.");
         return;
       }
 

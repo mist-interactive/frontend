@@ -107,7 +107,7 @@ export async function renewToken(): Promise<string | null> {
 export async function getValidToken(): Promise<string | null> {
   const token = localStorage.getItem('token');
   if (!token) {
-    return renewToken();
+    return null;
   }
 
   const claims = parseJwtSafe(token);
