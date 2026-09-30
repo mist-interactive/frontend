@@ -39,18 +39,18 @@ export default function Navbar() {
 
   return (
     <nav className="relative z-50 bg-zinc-900 border-b-4 border-black font-sans shrink-0">
-      <div className="px-4 py-3 sm:px-6 flex justify-between items-center">
+      <div className="px-3 sm:px-6 py-2.5 sm:py-3 flex justify-between items-center gap-2">
         {/* Left branding & desktop links */}
-        <div className="flex gap-6 items-center">
+        <div className="flex gap-4 lg:gap-6 items-center min-w-0">
           <Link
             to="/"
-            className="text-lg sm:text-xl font-black text-zinc-100 uppercase tracking-widest hover:text-lime-500 transition-colors mr-2 sm:mr-4"
+            className="text-base sm:text-xl font-black text-zinc-100 uppercase tracking-wider sm:tracking-widest hover:text-lime-500 transition-colors shrink-0 whitespace-nowrap"
           >
             Memoir<span className="text-lime-500">3167</span>
           </Link>
 
-          {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-6">
+          {/* Desktop Links (lg: breakpoint ensures no overlap with centered reconnect button) */}
+          <div className="hidden lg:flex items-center gap-6">
             <Link
               to="/profile"
               className={`text-sm font-bold uppercase tracking-widest transition-colors ${
@@ -71,12 +71,12 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Desktop conditional reconnect button centered */}
+        {/* Desktop conditional reconnect button centered (lg: screens only to prevent link collision) */}
         {isAuthenticated && activeMatchId && location.pathname !== '/game' && (
-          <div className="hidden md:block absolute left-1/2 -translate-x-1/2 top-2">
+          <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <button 
               onClick={handleReconnect}
-              className="bg-amber-600 text-white font-black uppercase tracking-widest px-6 py-2.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-amber-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-xs animate-pulse"
+              className="bg-amber-600 text-white font-black uppercase tracking-widest px-6 py-2.5 border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-amber-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all text-xs animate-pulse whitespace-nowrap"
             >
               Reconnect
             </button>
@@ -84,7 +84,7 @@ export default function Navbar() {
         )}
 
         {/* Desktop auth buttons */}
-        <div className="hidden md:flex gap-3 items-center">
+        <div className="hidden lg:flex gap-3 items-center shrink-0">
           {isAuthenticated ? (
             <button
               onClick={handleLogout} 
@@ -112,11 +112,11 @@ export default function Navbar() {
         </div>
 
         {/* Mobile controls: Reconnect badge (if active) + Hamburger toggle button */}
-        <div className="flex md:hidden items-center gap-2">
+        <div className="flex lg:hidden items-center gap-1.5 sm:gap-2 shrink-0">
           {isAuthenticated && activeMatchId && location.pathname !== '/game' && (
             <button 
               onClick={handleReconnect}
-              className="bg-amber-600 text-white font-black uppercase tracking-wider px-2.5 py-1.5 border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-amber-500 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-[11px] animate-pulse"
+              className="bg-amber-600 text-white font-black uppercase tracking-wider px-2 py-1 sm:px-2.5 sm:py-1.5 border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-amber-500 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-[10px] sm:text-[11px] animate-pulse shrink-0 whitespace-nowrap"
             >
               Reconnect
             </button>
@@ -125,18 +125,35 @@ export default function Navbar() {
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label="Toggle navigation menu"
-            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-black uppercase text-xs border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all flex items-center gap-1.5"
+            className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-black uppercase text-xs border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap"
           >
             <span>{isMobileMenuOpen ? "✕" : "☰"}</span>
-            <span>{isMobileMenuOpen ? "Close" : "Menu"}</span>
+            <span className="hidden xs:inline">{isMobileMenuOpen ? "Close" : "Menu"}</span>
           </button>
         </div>
       </div>
 
       {/* Mobile Dropdown Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t-4 border-black bg-zinc-950 p-4 space-y-4 shadow-[0_8px_0_0_#000000]">
+        <div className="lg:hidden border-t-4 border-black bg-zinc-950 p-4 space-y-4 shadow-[0_8px_0_0_#000000]">
           <div className="flex flex-col gap-2">
+            {/* Mobile drawer reconnect button for quick access */}
+            {isAuthenticated && activeMatchId && location.pathname !== '/game' && (
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleReconnect();
+                }}
+                className="w-full p-3 bg-amber-600 hover:bg-amber-500 text-white font-black uppercase tracking-wider text-xs border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all flex items-center justify-between animate-pulse"
+              >
+                <span className="flex items-center gap-2">
+                  <span>⚔️</span>
+                  <span>Reconnect to Match</span>
+                </span>
+                <span>→</span>
+              </button>
+            )}
+
             <Link
               to="/profile"
               onClick={() => setIsMobileMenuOpen(false)}
