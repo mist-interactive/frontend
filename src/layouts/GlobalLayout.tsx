@@ -68,6 +68,11 @@ function GlobalLayoutContent() {
     // un-minimize if already open
     setMinimizedChats((prev) => ({ ...prev, [username]: false }));
 
+    // on mobile, auto-close friends list so the user immediately sees the chat
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setIsFriendsOpen(false);
+    }
+
     setActiveChats((prev) => {
       if (prev.includes(username)) {
         return prev;
@@ -126,7 +131,7 @@ function GlobalLayoutContent() {
 
   // precomputed positioning for chat popups
   const chatBottom = isGamePage ? 'bottom-3' : 'bottom-14';
-  const chatLeft = isFriendsOpen ? 'left-[21rem]' : isGamePage ? 'left-36' : 'left-4';
+  const chatLeft = isFriendsOpen ? 'left-2 sm:left-4 lg:left-[21rem]' : isGamePage ? 'left-2 sm:left-36' : 'left-2 sm:left-4';
 
   return (
     <div className="flex flex-col h-screen w-full bg-zinc-950 overflow-hidden">
@@ -138,18 +143,27 @@ function GlobalLayoutContent() {
         
         {/* the overlay sidebar docked between navbar and footer */}
         {isAuthenticated && (
-          <FriendsList 
-            isOpen={isFriendsOpen}
-            onClose={() => setIsFriendsOpen(false)}
-            onOpenChat={handleOpenChat}
-            unreadCounts={unreadCounts}
-            onInitialUnreadCounts={(counts) => setUnreadCounts(counts)}
-          />
+          <>
+            {isFriendsOpen && (
+              <div 
+                onClick={() => setIsFriendsOpen(false)}
+                className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+                aria-hidden="true"
+              />
+            )}
+            <FriendsList 
+              isOpen={isFriendsOpen}
+              onClose={() => setIsFriendsOpen(false)}
+              onOpenChat={handleOpenChat}
+              unreadCounts={unreadCounts}
+              onInitialUnreadCounts={(counts) => setUnreadCounts(counts)}
+            />
+          </>
         )}
 
         {/* chat popups docked above footer or game canvas */}
         {isAuthenticated && (
-          <div className={`fixed ${chatBottom} ${chatLeft} flex items-end gap-3 z-40 transition-all duration-300 pointer-events-auto`}>
+          <div className={`fixed ${chatBottom} ${chatLeft} max-w-[calc(100vw-1rem)] flex items-end gap-3 z-40 transition-all duration-300 pointer-events-auto overflow-x-auto pb-1`}>
             {activeChats.map((username) => (
               <ChatWindow 
                 key={username}

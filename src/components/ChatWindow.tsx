@@ -188,8 +188,8 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
     /* 
       Main container: shrinks to compact dock tab when minimized
     */
-    <div className={`transition-all duration-200 border-4 border-black border-b-0 flex flex-col shadow-[6px_6px_0_0_#000000] font-sans ${
-      minimized ? 'w-56 h-11 bg-zinc-800' : 'w-80 h-96 bg-zinc-900'
+    <div className={`transition-all duration-200 border-4 border-black border-b-0 flex flex-col shadow-[4px_4px_0_0_#000000] sm:shadow-[6px_6px_0_0_#000000] font-sans ${
+      minimized ? 'w-44 sm:w-56 h-11 bg-zinc-800' : 'w-[calc(100vw-2rem)] max-w-xs sm:w-80 h-[22rem] sm:h-96 bg-zinc-900'
     }`}>
       {/* HEADER: Clicking anywhere on the top bar toggles minimize, except the X close button */}
       <div 
