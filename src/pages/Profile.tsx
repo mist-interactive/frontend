@@ -1151,78 +1151,80 @@ export default function Profile() {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
-                {matches.map((match) => {
-                  const isInProgress = match.status === 'in_progress' || (!match.finished_at && !match.result && !match.outcome);
-                  const isWin = match.outcome === 'win';
-                  const isLoss = match.outcome === 'loss';
-                  const isAborted = match.outcome === 'aborted';
+              <>
+                <div className="flex flex-col gap-3">
+                  {matches.map((match) => {
+                    const isInProgress = match.status === 'in_progress' || (!match.finished_at && !match.result && !match.outcome);
+                    const isWin = match.outcome === 'win';
+                    const isLoss = match.outcome === 'loss';
+                    const isAborted = match.outcome === 'aborted';
 
-                  return (
-                    <div
-                      key={match.id}
-                      className="flex flex-wrap items-center justify-between gap-4 bg-zinc-900 border-2 border-black p-3.5 shadow-[2px_2px_0_0_#000000]"
-                    >
-                      {/* Outcome Badge */}
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`text-xs font-black uppercase tracking-wider px-2.5 py-1 border-2 border-black min-w-[70px] text-center ${
-                            isInProgress
-                              ? "bg-amber-400 text-black animate-pulse"
-                              : isWin
-                              ? "bg-lime-500 text-black"
-                              : isLoss
-                              ? "bg-rose-500 text-white"
-                              : "bg-zinc-600 text-zinc-200"
-                          }`}
-                        >
-                          {isInProgress ? "In Progress" : isWin ? "Victory" : isLoss ? "Defeat" : isAborted ? "Aborted" : "Draw"}
-                        </span>
-
-                        {/* Opponent Info */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase text-zinc-400">vs</span>
-                          <Link
-                            to={`/profile/${match.opponent}`}
-                            className="flex items-center gap-2 text-sm font-bold text-white hover:text-lime-400 transition-colors"
+                    return (
+                      <div
+                        key={match.id}
+                        className="flex flex-wrap items-center justify-between gap-4 bg-zinc-900 border-2 border-black p-3.5 shadow-[2px_2px_0_0_#000000]"
+                      >
+                        {/* Outcome Badge */}
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`text-xs font-black uppercase tracking-wider px-2.5 py-1 border-2 border-black min-w-[70px] text-center ${
+                              isInProgress
+                                ? "bg-amber-400 text-black animate-pulse"
+                                : isWin
+                                ? "bg-lime-500 text-black"
+                                : isLoss
+                                ? "bg-rose-500 text-white"
+                                : "bg-zinc-600 text-zinc-200"
+                            }`}
                           >
-                            <img
-                              src={match.opponent_avatar_url || reactLogo}
-                              alt={match.opponent}
-                              className="w-7 h-7 border border-black bg-zinc-800 object-cover"
-                            />
-                            <span>{match.opponent}</span>
-                          </Link>
+                            {isInProgress ? "In Progress" : isWin ? "Victory" : isLoss ? "Defeat" : isAborted ? "Aborted" : "Draw"}
+                          </span>
+
+                          {/* Opponent Info */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase text-zinc-400">vs</span>
+                            <Link
+                              to={`/profile/${match.opponent}`}
+                              className="flex items-center gap-2 text-sm font-bold text-white hover:text-lime-400 transition-colors"
+                            >
+                              <img
+                                src={match.opponent_avatar_url || reactLogo}
+                                alt={match.opponent}
+                                className="w-7 h-7 border border-black bg-zinc-800 object-cover"
+                              />
+                              <span>{match.opponent}</span>
+                            </Link>
+                          </div>
+                        </div>
+
+                        {/* Score and Timestamp */}
+                        <div className="flex items-center gap-6">
+                          <div className="text-base font-black tracking-wider text-zinc-100">
+                            {match.user_score ?? 0} : {match.opponent_score ?? 0}
+                          </div>
+                          <div className="text-xs text-zinc-400 font-medium">
+                            {formatMatchDate(match.started_at)}
+                          </div>
                         </div>
                       </div>
-
-                      {/* Score and Timestamp */}
-                      <div className="flex items-center gap-6">
-                        <div className="text-base font-black tracking-wider text-zinc-100">
-                          {match.user_score ?? 0} : {match.opponent_score ?? 0}
-                        </div>
-                        <div className="text-xs text-zinc-400 font-medium">
-                          {formatMatchDate(match.started_at)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Load more matches button */}
-              {hasMoreMatches && (
-                <div className="flex justify-center pt-3">
-                  <button
-                    type="button"
-                    onClick={handleLoadMoreMatches}
-                    disabled={isLoadingMoreMatches}
-                    className="bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-zinc-300 font-bold uppercase tracking-wider text-xs px-6 py-2.5 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all cursor-pointer"
-                  >
-                    {isLoadingMoreMatches ? "Loading more..." : "Show More Matches"}
-                  </button>
+                    );
+                  })}
                 </div>
-              )}
+
+                {/* Load more matches button */}
+                {hasMoreMatches && (
+                  <div className="flex justify-center pt-3">
+                    <button
+                      type="button"
+                      onClick={handleLoadMoreMatches}
+                      disabled={isLoadingMoreMatches}
+                      className="bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-zinc-300 font-bold uppercase tracking-wider text-xs px-6 py-2.5 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all cursor-pointer"
+                    >
+                      {isLoadingMoreMatches ? "Loading more..." : "Show More Matches"}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
