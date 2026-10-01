@@ -395,9 +395,12 @@ export default function Profile() {
       }
 
       if (field === 'email') {
-        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        const trimmedEmail = value.trim();
+        if (!trimmedEmail) {
+          setEmailError("Email address is required");
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
           setEmailError("Please enter a valid email address");
-        } else if (value.length > 255) {
+        } else if (trimmedEmail.length > 255) {
           setEmailError("Email cannot exceed 255 characters");
         } else {
           setEmailError(null);
@@ -436,7 +439,7 @@ export default function Profile() {
     e.preventDefault();
     const profileUsername = username || userData?.username;
     const trimmed = newCommentText.trim();
-    if (!trimmed || !profileUsername || isPostingComment) return;
+    if (!trimmed || !profileUsername || isPostingComment || trimmed.length > 1000) return;
 
     setIsPostingComment(true);
     setCommentError(null);
@@ -545,11 +548,16 @@ export default function Profile() {
       setBioError("Bio cannot exceed 500 characters");
       return;
     }
-    if (userData.email && userData.email.length > 255) {
+    const trimmedEmail = (userData.email || "").trim();
+    if (!trimmedEmail) {
+      setEmailError("Email address is required");
+      return;
+    }
+    if (trimmedEmail.length > 255) {
       setEmailError("Email cannot exceed 255 characters");
       return;
     }
-    if (userData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setEmailError("Please enter a valid email address");
       return;
     }
@@ -897,7 +905,7 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-3 mt-2">
                   <button
                     onClick={handleSave}
-                    disabled={isSaving || Boolean(bioError) || Boolean(emailError) || (Boolean(userData.bio) && userData.bio!.length > 500)}
+                    disabled={isSaving || Boolean(bioError) || Boolean(emailError) || !userData.email?.trim() || (Boolean(userData.bio) && userData.bio!.length > 500)}
                     className="flex-1 sm:flex-none px-6 py-2.5 bg-lime-600 text-black font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs text-center"
                   >
                     {isSaving ? "Saving..." : "Save Profile"}
@@ -1250,14 +1258,15 @@ export default function Profile() {
           <form onSubmit={handlePostComment} className="flex flex-col gap-3 bg-zinc-900 border-2 border-black p-4">
             <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-zinc-400">
               <span>Leave a comment for @{userData.username}</span>
-              <span className={`${newCommentText.length > 450 ? 'text-amber-400' : 'text-zinc-500'} font-mono`}>
-                {newCommentText.length} / 500
+              <span className={`${newCommentText.length > 900 ? 'text-amber-400' : 'text-zinc-500'} font-mono`}>
+                {newCommentText.length} / 1000
               </span>
             </div>
 
             <textarea
               value={newCommentText}
-              onChange={(e) => setNewCommentText(e.target.value.slice(0, 500))}
+              maxLength={1000}
+              onChange={(e) => setNewCommentText(e.target.value.slice(0, 1000))}
               placeholder={`Say something nice to @${userData.username}...`}
               rows={2}
               className="bg-zinc-950 border-2 border-black p-2.5 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-medium resize-none break-words [overflow-wrap:anywhere]"
@@ -1271,7 +1280,7 @@ export default function Profile() {
 
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-zinc-500 font-medium">
-                Plain text only • Max 500 characters
+                Plain text only • Max 1000 characters
               </span>
               <button
                 type="submit"

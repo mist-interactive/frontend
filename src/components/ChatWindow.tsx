@@ -155,7 +155,7 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
   */
   const handleSendMessage = () => {
     const trimmed = currentMessage.trim();
-    if (!trimmed || trimmed.length > 500) return;
+    if (!trimmed || trimmed.length > 2000) return;
     
     // Send the JSON payload exactly as the backend expects
     sendMessage({
@@ -270,7 +270,7 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
             <div className="flex gap-2">
               <input
                 type="text"
-                maxLength={500}
+                maxLength={2000}
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -285,10 +285,10 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
                 Send
               </button>
             </div>
-            {currentMessage.length > 400 && (
+            {currentMessage.length > 1800 && (
               <div className="flex justify-end text-[9px] font-mono text-zinc-400">
-                <span className={currentMessage.length >= 500 ? "text-rose-400 font-bold" : ""}>
-                  {currentMessage.length}/500
+                <span className={currentMessage.length >= 2000 ? "text-rose-400 font-bold" : ""}>
+                  {currentMessage.length}/2000
                 </span>
               </div>
             )}
