@@ -540,7 +540,11 @@ export default function Profile() {
 
         const updatedWithAvatar = await avatarResponse.json();
         currentData = {
+          ...currentData,
           ...updatedWithAvatar,
+          stats: userData.stats,
+          progression: userData.progression,
+          badges: userData.badges,
           email: userData.email,
           bio: userData.bio,
         };
@@ -571,8 +575,14 @@ export default function Profile() {
 
         if (response.ok) {
           const updated = await response.json();
-          currentData = updated;
-          setUserData(updated);
+          currentData = {
+            ...currentData,
+            ...updated,
+            stats: userData.stats,
+            progression: userData.progression,
+            badges: userData.badges,
+          };
+          setUserData(currentData);
         } else {
           const errText = await response.text();
           console.error("Failed to update profile, status:", response.status, errText);
