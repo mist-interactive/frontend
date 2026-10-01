@@ -1105,6 +1105,7 @@ export default function Profile() {
             ) : (
               <div className="flex flex-col gap-3">
                 {matches.map((match) => {
+                  const isInProgress = match.status === 'in_progress' || (!match.finished_at && !match.result && !match.outcome);
                   const isWin = match.outcome === 'win';
                   const isLoss = match.outcome === 'loss';
                   const isAborted = match.outcome === 'aborted';
@@ -1118,14 +1119,16 @@ export default function Profile() {
                       <div className="flex items-center gap-3">
                         <span
                           className={`text-xs font-black uppercase tracking-wider px-2.5 py-1 border-2 border-black min-w-[70px] text-center ${
-                            isWin
+                            isInProgress
+                              ? "bg-amber-400 text-black animate-pulse"
+                              : isWin
                               ? "bg-lime-500 text-black"
                               : isLoss
                               ? "bg-rose-500 text-white"
                               : "bg-zinc-600 text-zinc-200"
                           }`}
                         >
-                          {isWin ? "Victory" : isLoss ? "Defeat" : isAborted ? "Aborted" : "Draw"}
+                          {isInProgress ? "In Progress" : isWin ? "Victory" : isLoss ? "Defeat" : isAborted ? "Aborted" : "Draw"}
                         </span>
 
                         {/* Opponent Info */}
