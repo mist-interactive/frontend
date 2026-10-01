@@ -65,6 +65,7 @@ export default function Login() {
 
       // phase 3: save token and user claims to local storage
       setAuth(jwtData.token);
+      sessionStorage.setItem("open_friends_on_login", "true");
 
       // phase 4: redirect user 
       window.location.href = "/";

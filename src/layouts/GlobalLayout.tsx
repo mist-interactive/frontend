@@ -13,7 +13,21 @@ function GlobalLayoutContent() {
   const isAuthenticated = localStorage.getItem("token") !== null;
   const isGamePage = location.pathname === '/game';
   
-  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(() => {
+    if (sessionStorage.getItem("open_friends_on_login") === "true") {
+      sessionStorage.removeItem("open_friends_on_login");
+      return true;
+    }
+    return false;
+  });
+
+  // check if login flag was set dynamically
+  useEffect(() => {
+    if (sessionStorage.getItem("open_friends_on_login") === "true") {
+      sessionStorage.removeItem("open_friends_on_login");
+      setIsFriendsOpen(true);
+    }
+  }, [location.pathname]);
   
   // to track open active chats (max 4 FIFO)
   const [activeChats, setActiveChats] = useState<string[]>([]);
