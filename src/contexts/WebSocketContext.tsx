@@ -58,8 +58,10 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // construct the connection url
-      const url = `wss://localhost:8443/api/ws?token=${token}`;
+      // construct the connection url dynamically based on current window location
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'localhost:8443';
+      const url = `${protocol}//${host}/api/ws?token=${token}`;
 
       // open the connection
       const socket = new WebSocket(url);
@@ -95,20 +97,21 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
 
       // error and closure logging
       socket.onerror = (error) => {
+        // suppress error log if component was unmounted (e.g. React StrictMode mount cycle)
+        if (!isMounted) return;
         console.error("[WS Error]:", error);
       };
 
       socket.onclose = () => {
+        if (!isMounted) return;
         console.log("[WS Closed]");
         // auto-reconnect with fresh token if component is still mounted
-        if (isMounted) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log("[WS Reconnecting...]");
-            connect();
-          }, reconnectDelay);
-          // exponential backoff capped at 10s
-          reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
-        }
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log("[WS Reconnecting...]");
+          connect();
+        }, reconnectDelay);
+        // exponential backoff capped at 10s
+        reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
       };
     };
 
