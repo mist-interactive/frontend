@@ -177,6 +177,8 @@ export default function Profile() {
   // matches and friends state
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
+  const [hasMoreMatches, setHasMoreMatches] = useState(false);
+  const [isLoadingMoreMatches, setIsLoadingMoreMatches] = useState(false);
   const [hasFriends, setHasFriends] = useState(false);
 
   // comments section state
@@ -306,17 +308,25 @@ export default function Profile() {
     const fetchMatches = async () => {
       setIsLoadingMatches(true);
       try {
-        const endpoint = username ? `/api/protected/matches?username=${username}` : `/api/protected/matches`;
-        const response = await apiFetch(endpoint);
+        const queryParams = new URLSearchParams();
+        if (username) queryParams.set("username", username);
+        queryParams.set("limit", "10");
+        queryParams.set("offset", "0");
+
+        const response = await apiFetch(`/api/protected/matches?${queryParams.toString()}`);
         if (response.ok) {
           const data = await response.json();
-          setMatches(Array.isArray(data) ? data : []);
+          const list = Array.isArray(data) ? data : [];
+          setMatches(list);
+          setHasMoreMatches(list.length === 10);
         } else {
           setMatches([]);
+          setHasMoreMatches(false);
         }
       } catch (error) {
         console.error("Failed to fetch matches:", error);
         setMatches([]);
+        setHasMoreMatches(false);
       } finally {
         setIsLoadingMatches(false);
       }
@@ -472,6 +482,34 @@ export default function Profile() {
       }
     } catch (error) {
       console.error("network error deleting comment:", error);
+    }
+  };
+
+  // handle loading older matches with offset pagination
+  const handleLoadMoreMatches = async () => {
+    if (matches.length === 0 || isLoadingMoreMatches) return;
+
+    setIsLoadingMoreMatches(true);
+    try {
+      const queryParams = new URLSearchParams();
+      if (username) queryParams.set("username", username);
+      queryParams.set("limit", "10");
+      queryParams.set("offset", matches.length.toString());
+
+      const response = await apiFetch(`/api/protected/matches?${queryParams.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        const list = Array.isArray(data) ? data : [];
+        setMatches((prev) => [...prev, ...list]);
+        setHasMoreMatches(list.length === 10);
+      } else {
+        setHasMoreMatches(false);
+      }
+    } catch (error) {
+      console.error("Failed to load more matches:", error);
+      setHasMoreMatches(false);
+    } finally {
+      setIsLoadingMoreMatches(false);
     }
   };
 
@@ -1171,6 +1209,20 @@ export default function Profile() {
                   );
                 })}
               </div>
+
+              {/* Load more matches button */}
+              {hasMoreMatches && (
+                <div className="flex justify-center pt-3">
+                  <button
+                    type="button"
+                    onClick={handleLoadMoreMatches}
+                    disabled={isLoadingMoreMatches}
+                    className="bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-zinc-300 font-bold uppercase tracking-wider text-xs px-6 py-2.5 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all cursor-pointer"
+                  >
+                    {isLoadingMoreMatches ? "Loading more..." : "Show More Matches"}
+                  </button>
+                </div>
+              )}
             )}
           </div>
 
