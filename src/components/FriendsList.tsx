@@ -1,4 +1,5 @@
 import { useState, useEffect, useReducer } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../utils/apiFetch';
 import { HttpStatus } from '../utils/httpStatus';
 import { useWebSocket } from '../contexts/WebSocketContext';
@@ -366,9 +367,18 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
           <div className={`w-2 h-2 border border-black shadow-[1px_1px_0_0_#000] ${
             friend.is_online ? 'bg-lime-500' : 'bg-zinc-600'
           }`}></div>
-          <span className="font-bold text-zinc-100 uppercase tracking-widest text-sm">
+          <Link
+            to={`/profile/${friend.username}`}
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                onClose();
+              }
+            }}
+            className="font-bold text-zinc-100 uppercase tracking-widest text-sm hover:text-lime-400 hover:underline transition-colors"
+            title={`View ${friend.username}'s profile`}
+          >
             {friend.username}
-          </span>
+          </Link>
           {Boolean(unreadCounts[friend.username] && unreadCounts[friend.username] > 0) && (
             <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
               {unreadCounts[friend.username] > 99 ? '99+' : unreadCounts[friend.username]}
