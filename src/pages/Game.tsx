@@ -75,9 +75,20 @@ export default function Game() {
           // send the payload to the iframe with postmessage
           // '*' allows any origin. !!!!change to specific domain in production!!!!
           iframeRef.current.contentWindow.postMessage(payload, "*");
+          // Force the browser to recalculate the iframe's internal canvas matrix
+          // after Godot initializes by nudging the iframe element dimensions.
+          const iframe = iframeRef.current;
+          iframe.style.width = "calc(100% - 1px)";
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              iframe.style.width = "100%";
+            });
+          });
+          
         } else if (!token) {
           console.error("Game auth initialization aborted: could not obtain a valid token");
         }
+        
       }
     };
     
