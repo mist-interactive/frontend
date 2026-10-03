@@ -17,12 +17,12 @@ export default function Login() {
 
     // validation: check for empty strings and length constraints
     if (!trimmedUsername || !password) {
-      setError("Please enter both username and password.");
+      setError("Please enter both username/email and password.");
       return;
     }
 
-    if (trimmedUsername.length < 3 || trimmedUsername.length > 50) {
-      setError("Username must be between 3 and 50 characters.");
+    if (trimmedUsername.length < 3 || trimmedUsername.length > 255) {
+      setError("Username or email must be between 3 and 255 characters.");
       return;
     }
 
@@ -50,9 +50,9 @@ export default function Login() {
       if (!loginResponse.ok) {
         const errText = await loginResponse.text().catch(() => "");
         if (loginResponse.status === 404 || loginResponse.status === 403) {
-          setError("Invalid username or password.");
+          setError("Invalid username/email or password.");
         } else if (errText.includes("Validation error")) {
-          setError("Invalid username or password format.");
+          setError("Invalid username/email or password format.");
         } else {
           setError(errText || "Login failed. Please check your credentials.");
         }
@@ -103,19 +103,19 @@ export default function Login() {
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          {/* username field */}
+          {/* username or email field */}
           <div className="flex flex-col gap-1">
             <label htmlFor="username" className="text-xs font-bold text-zinc-400 mb-1 tracking-wider uppercase">
-              Username
+              Username or Email
             </label>
             <input
               type="text"
               id="username"
-              maxLength={50}
+              maxLength={255}
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
+              placeholder="Username or Email"
               className="bg-zinc-900 border-4 border-black text-white p-3 outline-none focus:border-lime-700 transition-colors text-sm font-medium"
             />
           </div>

@@ -21,31 +21,50 @@ export default function Game() {
   );
   const [isMatchConcluded, setIsMatchConcluded] = useState(false);
 
-  // sync activeMatchId with wsMatchId from WebSocketContext
-  useEffect(() => {
-    if (wsMatchId !== undefined) {
-      if (wsMatchId !== null) {
-        setActiveMatchId(wsMatchId);
-        setIsMatchConcluded(false);
-      } else if (activeMatchId !== null) {
-        // ws confirmed active match has ended
-        setActiveMatchId(null);
-        setIsMatchConcluded(true);
-        if (location.state?.matchId) {
-          navigate(location.pathname, { replace: true, state: {} });
-        }
-      }
-    }
-  }, [wsMatchId, activeMatchId, location.state, location.pathname, navigate]);
+  const concludeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // catch match_finished event specifically to reset all states and purge router history
+  // cleanup conclude timer on unmount
   useEffect(() => {
-    if (lastMessage?.type === 'match_finished') {
+    return () => {
+      if (concludeTimeoutRef.current) {
+        clearTimeout(concludeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const concludeMatchWithDelay = () => {
+    if (concludeTimeoutRef.current) return;
+    concludeTimeoutRef.current = setTimeout(() => {
       setActiveMatchId(null);
       setIsMatchConcluded(true);
       if (location.state?.matchId) {
         navigate(location.pathname, { replace: true, state: {} });
       }
+      concludeTimeoutRef.current = null;
+    }, 5000);
+  };
+
+  // sync activeMatchId with wsMatchId from WebSocketContext
+  useEffect(() => {
+    if (wsMatchId !== undefined) {
+      if (wsMatchId !== null) {
+        if (concludeTimeoutRef.current) {
+          clearTimeout(concludeTimeoutRef.current);
+          concludeTimeoutRef.current = null;
+        }
+        setActiveMatchId(wsMatchId);
+        setIsMatchConcluded(false);
+      } else if (activeMatchId !== null) {
+        // ws confirmed active match has ended -> delay 5s so players see in-game winner banner
+        concludeMatchWithDelay();
+      }
+    }
+  }, [wsMatchId, activeMatchId, location.state, location.pathname, navigate]);
+
+  // catch match_finished event specifically to reset all states after 5s delay
+  useEffect(() => {
+    if (lastMessage?.type === 'match_finished') {
+      concludeMatchWithDelay();
     }
   }, [lastMessage, location.state, location.pathname, navigate]);
 
@@ -75,9 +94,20 @@ export default function Game() {
           // send the payload to the iframe with postmessage
           // '*' allows any origin. !!!!change to specific domain in production!!!!
           iframeRef.current.contentWindow.postMessage(payload, "*");
+          // Force the browser to recalculate the iframe's internal canvas matrix
+          // after Godot initializes by nudging the iframe element dimensions.
+          const iframe = iframeRef.current;
+          iframe.style.width = "calc(100% - 1px)";
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              iframe.style.width = "100%";
+            });
+          });
+          
         } else if (!token) {
           console.error("Game auth initialization aborted: could not obtain a valid token");
         }
+        
       }
     };
     

@@ -69,7 +69,19 @@ function GlobalLayoutContent() {
   // total unread count across all friends for the footer dock button
   const totalUnreadCount = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
-  // opens new chat if its not already open; enforces max 4 active chats FIFO
+  // enforce max 1 chat window on mobile screens (< 640px)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) {
+        setActiveChats((prev) => (prev.length > 1 ? prev.slice(-1) : prev));
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // opens new chat if its not already open; enforces max 1 on mobile or 4 on desktop (FIFO)
   const handleOpenChat = (username: string) => {
     // clear unread count for this friend
     setUnreadCounts((prev) => {
@@ -87,13 +99,15 @@ function GlobalLayoutContent() {
       setIsFriendsOpen(false);
     }
 
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const maxChats = isMobile ? 1 : 4;
+
     setActiveChats((prev) => {
       if (prev.includes(username)) {
         return prev;
       }
-      // FIFO: if already 4 open windows, drop the oldest (first element) and append new
-      if (prev.length >= 4) {
-        return [...prev.slice(1), username];
+      if (prev.length >= maxChats) {
+        return [...prev.slice(prev.length - maxChats + 1), username];
       }
       return [...prev, username];
     });
@@ -144,7 +158,7 @@ function GlobalLayoutContent() {
   };
 
   // precomputed positioning for chat popups
-  const chatBottom = isGamePage ? 'bottom-3' : 'bottom-14';
+  const chatBottom = isGamePage ? 'bottom-16 sm:bottom-3' : 'bottom-14';
   const chatLeft = isFriendsOpen ? 'left-2 sm:left-4 lg:left-[21rem]' : isGamePage ? 'left-2 sm:left-36' : 'left-2 sm:left-4';
 
   return (
