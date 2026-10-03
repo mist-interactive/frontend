@@ -15,9 +15,19 @@ export default function Login() {
 
     const trimmedUsername = username.trim();
 
-    // validation: check for empty strings
+    // validation: check for empty strings and length constraints
     if (!trimmedUsername || !password) {
       setError("Please enter both username and password.");
+      return;
+    }
+
+    if (trimmedUsername.length < 3 || trimmedUsername.length > 50) {
+      setError("Username must be between 3 and 50 characters.");
+      return;
+    }
+
+    if (password.length < 8 || password.length > 72) {
+      setError("Password must be between 8 and 72 characters.");
       return;
     }
 
@@ -65,6 +75,7 @@ export default function Login() {
 
       // phase 3: save token and user claims to local storage
       setAuth(jwtData.token);
+      sessionStorage.setItem("open_friends_on_login", "true");
 
       // phase 4: redirect user 
       window.location.href = "/";
@@ -75,7 +86,7 @@ export default function Login() {
     }
   };
 
-  const isFormValid = username.trim().length > 0 && password.length > 0;
+  const isFormValid = username.trim().length >= 3 && password.length >= 8;
 
   return (
     <div className="min-h-full py-8 bg-zinc-900 flex items-center justify-center p-4 font-sans">

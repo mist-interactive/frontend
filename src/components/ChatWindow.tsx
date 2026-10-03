@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../utils/apiFetch';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { getAuthUser } from '../utils/auth';
@@ -154,7 +155,7 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
   */
   const handleSendMessage = () => {
     const trimmed = currentMessage.trim();
-    if (!trimmed || trimmed.length > 500) return;
+    if (!trimmed || trimmed.length > 2000) return;
     
     // Send the JSON payload exactly as the backend expects
     sendMessage({
@@ -198,9 +199,14 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
         title={minimized ? "Click to expand" : "Click to minimize"}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
-          <span className="font-bold text-zinc-100 tracking-widest text-xs uppercase truncate">
+          <Link
+            to={`/profile/${friendUsername}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-bold text-zinc-100 hover:text-lime-400 hover:underline tracking-widest text-xs uppercase truncate transition-colors cursor-pointer"
+            title={`View ${friendUsername}'s profile`}
+          >
             {friendUsername}
-          </span>
+          </Link>
           {Boolean(minimized && unreadCount > 0) && (
             <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] leading-none border border-black shadow-[1px_1px_0_0_#000000] animate-pulse">
               {unreadCount > 99 ? '99+' : unreadCount}
@@ -264,7 +270,7 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
             <div className="flex gap-2">
               <input
                 type="text"
-                maxLength={500}
+                maxLength={2000}
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -279,10 +285,10 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
                 Send
               </button>
             </div>
-            {currentMessage.length > 400 && (
+            {currentMessage.length > 1800 && (
               <div className="flex justify-end text-[9px] font-mono text-zinc-400">
-                <span className={currentMessage.length >= 500 ? "text-rose-400 font-bold" : ""}>
-                  {currentMessage.length}/500
+                <span className={currentMessage.length >= 2000 ? "text-rose-400 font-bold" : ""}>
+                  {currentMessage.length}/2000
                 </span>
               </div>
             )}

@@ -1,70 +1,54 @@
 import { HttpStatus } from '../utils/httpStatus';
-import { setAuth, clearAuth } from './auth';
+import { getValidToken, renewToken, clearAuth } from './auth';
 
+// wrapper around fetch that adds auth header and auto-renews token
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  // get token
-  let token = localStorage.getItem("token");
+  // get valid token, auto-renewing if expired or close to expiring
+  let token = await getValidToken();
 
-  // intialize headers object
+  // initialize headers object
   const headers = new Headers(options.headers || {});
 
-  // add Authorization key
+  // add authorization header if token exists
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  // update with new headers
+  // update options with headers
   const fetchOptions: RequestInit = {
     ...options,
     headers,
   };
 
-  // execute old request
+  // execute original request
   let response = await fetch(url, fetchOptions);
 
-  // if not 401 return reposne normally
+  // if not 401 return response normally
   if (response.status !== HttpStatus.UNAUTHORIZED) {
     return response;
   }
 
-  // if 401 (jwt expired), try silent refresh 
+  // if 401 returned, try silent renewal
   try {
-    const renewResponse = await fetch('/api/renew', {
-          method: "POST",
-      });
-
-    if (renewResponse.ok) {
-      // take new token
-      const data = await renewResponse.json();
-      
-      // extract the token and explicitly type it as a string
-      const newToken: string = data.token;
-      
-      // save to local storage
-      setAuth(newToken);
-
-      // update the original variable and the headers for the retry
-      token = newToken;
-      headers.set("Authorization", `Bearer ${token}`);
-      
-      const retryOptions: RequestInit = {
-        ...options,
-        headers,
-      };
-
-      // execute original request again with the new token
-      response = await fetch(url, retryOptions);
-      return response;
-    } else {
-      // session token expired
-      throw new Error("Session expired");
+    const newToken = await renewToken();
+    if (!newToken) {
+      throw new Error("session expired");
     }
+
+    // retry request with renewed token
+    headers.set("Authorization", `Bearer ${newToken}`);
+    const retryOptions: RequestInit = {
+      ...options,
+      headers,
+    };
+
+    return await fetch(url, retryOptions);
   } catch (error) {
-    // clean auth state, and redirect to login page
+    // on failure clear auth state and redirect to login
     clearAuth();
     window.location.href = "/login";
-    
-    // return the old response
+
+    // return original response
     return response;
   }
 }

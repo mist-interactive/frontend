@@ -177,6 +177,8 @@ export default function Profile() {
   // matches and friends state
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
+  const [hasMoreMatches, setHasMoreMatches] = useState(false);
+  const [isLoadingMoreMatches, setIsLoadingMoreMatches] = useState(false);
   const [hasFriends, setHasFriends] = useState(false);
 
   // comments section state
@@ -306,17 +308,25 @@ export default function Profile() {
     const fetchMatches = async () => {
       setIsLoadingMatches(true);
       try {
-        const endpoint = username ? `/api/protected/matches?username=${username}` : `/api/protected/matches`;
-        const response = await apiFetch(endpoint);
+        const queryParams = new URLSearchParams();
+        if (username) queryParams.set("username", username);
+        queryParams.set("limit", "10");
+        queryParams.set("offset", "0");
+
+        const response = await apiFetch(`/api/protected/matches?${queryParams.toString()}`);
         if (response.ok) {
           const data = await response.json();
-          setMatches(Array.isArray(data) ? data : []);
+          const list = Array.isArray(data) ? data : [];
+          setMatches(list);
+          setHasMoreMatches(list.length === 10);
         } else {
           setMatches([]);
+          setHasMoreMatches(false);
         }
       } catch (error) {
         console.error("Failed to fetch matches:", error);
         setMatches([]);
+        setHasMoreMatches(false);
       } finally {
         setIsLoadingMatches(false);
       }
@@ -385,9 +395,12 @@ export default function Profile() {
       }
 
       if (field === 'email') {
-        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        const trimmedEmail = value.trim();
+        if (!trimmedEmail) {
+          setEmailError("Email address is required");
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
           setEmailError("Please enter a valid email address");
-        } else if (value.length > 255) {
+        } else if (trimmedEmail.length > 255) {
           setEmailError("Email cannot exceed 255 characters");
         } else {
           setEmailError(null);
@@ -426,7 +439,7 @@ export default function Profile() {
     e.preventDefault();
     const profileUsername = username || userData?.username;
     const trimmed = newCommentText.trim();
-    if (!trimmed || !profileUsername || isPostingComment) return;
+    if (!trimmed || !profileUsername || isPostingComment || trimmed.length > 1000) return;
 
     setIsPostingComment(true);
     setCommentError(null);
@@ -475,6 +488,34 @@ export default function Profile() {
     }
   };
 
+  // handle loading older matches with offset pagination
+  const handleLoadMoreMatches = async () => {
+    if (matches.length === 0 || isLoadingMoreMatches) return;
+
+    setIsLoadingMoreMatches(true);
+    try {
+      const queryParams = new URLSearchParams();
+      if (username) queryParams.set("username", username);
+      queryParams.set("limit", "10");
+      queryParams.set("offset", matches.length.toString());
+
+      const response = await apiFetch(`/api/protected/matches?${queryParams.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        const list = Array.isArray(data) ? data : [];
+        setMatches((prev) => [...prev, ...list]);
+        setHasMoreMatches(list.length === 10);
+      } else {
+        setHasMoreMatches(false);
+      }
+    } catch (error) {
+      console.error("Failed to load more matches:", error);
+      setHasMoreMatches(false);
+    } finally {
+      setIsLoadingMoreMatches(false);
+    }
+  };
+
   // handle loading older comments with cursor pagination
   const handleLoadMoreComments = async () => {
     const profileUsername = username || userData?.username;
@@ -507,11 +548,16 @@ export default function Profile() {
       setBioError("Bio cannot exceed 500 characters");
       return;
     }
-    if (userData.email && userData.email.length > 255) {
+    const trimmedEmail = (userData.email || "").trim();
+    if (!trimmedEmail) {
+      setEmailError("Email address is required");
+      return;
+    }
+    if (trimmedEmail.length > 255) {
       setEmailError("Email cannot exceed 255 characters");
       return;
     }
-    if (userData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setEmailError("Please enter a valid email address");
       return;
     }
@@ -540,7 +586,11 @@ export default function Profile() {
 
         const updatedWithAvatar = await avatarResponse.json();
         currentData = {
+          ...currentData,
           ...updatedWithAvatar,
+          stats: userData.stats,
+          progression: userData.progression,
+          badges: userData.badges,
           email: userData.email,
           bio: userData.bio,
         };
@@ -571,8 +621,14 @@ export default function Profile() {
 
         if (response.ok) {
           const updated = await response.json();
-          currentData = updated;
-          setUserData(updated);
+          currentData = {
+            ...currentData,
+            ...updated,
+            stats: userData.stats,
+            progression: userData.progression,
+            badges: userData.badges,
+          };
+          setUserData(currentData);
         } else {
           const errText = await response.text();
           console.error("Failed to update profile, status:", response.status, errText);
@@ -849,7 +905,7 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-3 mt-2">
                   <button
                     onClick={handleSave}
-                    disabled={isSaving || Boolean(bioError) || Boolean(emailError) || (Boolean(userData.bio) && userData.bio!.length > 500)}
+                    disabled={isSaving || Boolean(bioError) || Boolean(emailError) || !userData.email?.trim() || (Boolean(userData.bio) && userData.bio!.length > 500)}
                     className="flex-1 sm:flex-none px-6 py-2.5 bg-lime-600 text-black font-black uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_0_#000000] hover:bg-lime-500 active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-50 text-xs text-center"
                   >
                     {isSaving ? "Saving..." : "Save Profile"}
@@ -1103,61 +1159,80 @@ export default function Profile() {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
-                {matches.map((match) => {
-                  const isWin = match.outcome === 'win';
-                  const isLoss = match.outcome === 'loss';
-                  const isAborted = match.outcome === 'aborted';
+              <>
+                <div className="flex flex-col gap-3">
+                  {matches.map((match) => {
+                    const isInProgress = match.status === 'in_progress' || (!match.finished_at && !match.result && !match.outcome);
+                    const isWin = match.outcome === 'win';
+                    const isLoss = match.outcome === 'loss';
+                    const isAborted = match.outcome === 'aborted';
 
-                  return (
-                    <div
-                      key={match.id}
-                      className="flex flex-wrap items-center justify-between gap-4 bg-zinc-900 border-2 border-black p-3.5 shadow-[2px_2px_0_0_#000000]"
-                    >
-                      {/* Outcome Badge */}
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`text-xs font-black uppercase tracking-wider px-2.5 py-1 border-2 border-black min-w-[70px] text-center ${
-                            isWin
-                              ? "bg-lime-500 text-black"
-                              : isLoss
-                              ? "bg-rose-500 text-white"
-                              : "bg-zinc-600 text-zinc-200"
-                          }`}
-                        >
-                          {isWin ? "Victory" : isLoss ? "Defeat" : isAborted ? "Aborted" : "Draw"}
-                        </span>
-
-                        {/* Opponent Info */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase text-zinc-400">vs</span>
-                          <Link
-                            to={`/profile/${match.opponent}`}
-                            className="flex items-center gap-2 text-sm font-bold text-white hover:text-lime-400 transition-colors"
+                    return (
+                      <div
+                        key={match.id}
+                        className="flex flex-wrap items-center justify-between gap-4 bg-zinc-900 border-2 border-black p-3.5 shadow-[2px_2px_0_0_#000000]"
+                      >
+                        {/* Outcome Badge */}
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`text-xs font-black uppercase tracking-wider px-2.5 py-1 border-2 border-black min-w-[70px] text-center ${
+                              isInProgress
+                                ? "bg-amber-400 text-black animate-pulse"
+                                : isWin
+                                ? "bg-lime-500 text-black"
+                                : isLoss
+                                ? "bg-rose-500 text-white"
+                                : "bg-zinc-600 text-zinc-200"
+                            }`}
                           >
-                            <img
-                              src={match.opponent_avatar_url || reactLogo}
-                              alt={match.opponent}
-                              className="w-7 h-7 border border-black bg-zinc-800 object-cover"
-                            />
-                            <span>{match.opponent}</span>
-                          </Link>
-                        </div>
-                      </div>
+                            {isInProgress ? "In Progress" : isWin ? "Victory" : isLoss ? "Defeat" : isAborted ? "Aborted" : "Draw"}
+                          </span>
 
-                      {/* Score and Timestamp */}
-                      <div className="flex items-center gap-6">
-                        <div className="text-base font-black tracking-wider text-zinc-100">
-                          {match.user_score ?? 0} : {match.opponent_score ?? 0}
+                          {/* Opponent Info */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase text-zinc-400">vs</span>
+                            <Link
+                              to={`/profile/${match.opponent}`}
+                              className="flex items-center gap-2 text-sm font-bold text-white hover:text-lime-400 transition-colors"
+                            >
+                              <img
+                                src={match.opponent_avatar_url || reactLogo}
+                                alt={match.opponent}
+                                className="w-7 h-7 border border-black bg-zinc-800 object-cover"
+                              />
+                              <span>{match.opponent}</span>
+                            </Link>
+                          </div>
                         </div>
-                        <div className="text-xs text-zinc-400 font-medium">
-                          {formatMatchDate(match.started_at)}
+
+                        {/* Score and Timestamp */}
+                        <div className="flex items-center gap-6">
+                          <div className="text-base font-black tracking-wider text-zinc-100">
+                            {match.user_score ?? 0} : {match.opponent_score ?? 0}
+                          </div>
+                          <div className="text-xs text-zinc-400 font-medium">
+                            {formatMatchDate(match.started_at)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+
+                {/* Load more matches button */}
+                {hasMoreMatches && (
+                  <div className="flex justify-center pt-3">
+                    <button
+                      type="button"
+                      onClick={handleLoadMoreMatches}
+                      disabled={isLoadingMoreMatches}
+                      className="bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-zinc-300 font-bold uppercase tracking-wider text-xs px-6 py-2.5 border-2 border-black shadow-[2px_2px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all cursor-pointer"
+                    >
+                      {isLoadingMoreMatches ? "Loading more..." : "Show More Matches"}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -1183,14 +1258,15 @@ export default function Profile() {
           <form onSubmit={handlePostComment} className="flex flex-col gap-3 bg-zinc-900 border-2 border-black p-4">
             <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-zinc-400">
               <span>Leave a comment for @{userData.username}</span>
-              <span className={`${newCommentText.length > 450 ? 'text-amber-400' : 'text-zinc-500'} font-mono`}>
-                {newCommentText.length} / 500
+              <span className={`${newCommentText.length > 900 ? 'text-amber-400' : 'text-zinc-500'} font-mono`}>
+                {newCommentText.length} / 1000
               </span>
             </div>
 
             <textarea
               value={newCommentText}
-              onChange={(e) => setNewCommentText(e.target.value.slice(0, 500))}
+              maxLength={1000}
+              onChange={(e) => setNewCommentText(e.target.value.slice(0, 1000))}
               placeholder={`Say something nice to @${userData.username}...`}
               rows={2}
               className="bg-zinc-950 border-2 border-black p-2.5 outline-none focus:border-lime-500 transition-colors text-white tracking-wider text-sm font-medium resize-none break-words [overflow-wrap:anywhere]"
@@ -1204,7 +1280,7 @@ export default function Profile() {
 
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-zinc-500 font-medium">
-                Plain text only • Max 500 characters
+                Plain text only • Max 1000 characters
               </span>
               <button
                 type="submit"

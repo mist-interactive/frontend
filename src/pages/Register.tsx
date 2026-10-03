@@ -13,7 +13,7 @@ function checkPasswordComplexity(pw: string): {
   const hasLower = /[a-z]/.test(pw);
   const hasUpper = /[A-Z]/.test(pw);
   const hasDigit = /[0-9]/.test(pw);
-  const hasSpecial = /[^a-zA-Z0-9]/.test(pw);
+  const hasSpecial = /[\p{P}\p{S}]/u.test(pw);
   const typesCount = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length;
   const hasMixedChars = typesCount >= 2;
   return {
@@ -65,7 +65,7 @@ export default function Register() {
       } else if (!isEmailValid) {
         setError("Please enter a valid email address.");
       } else if (!passwordStatus.isValid) {
-        setError("Password must be 8–72 characters and contain at least 2 character types.");
+        setError("Password must be 8–72 characters and contain at least 2 types: uppercase, lowercase, numbers, or symbols (spaces don't count).");
       } else if (!isPasswordMatch) {
         setError("Passwords do not match.");
       }
@@ -205,7 +205,7 @@ export default function Register() {
               </div>
               <div className={`flex items-center gap-1.5 ${passwordStatus.hasMixedChars ? "text-lime-400" : "text-zinc-500"}`}>
                 <span>{passwordStatus.hasMixedChars ? "✓" : "•"}</span>
-                <span>At least 2 types: uppercase, lowercase, numbers, or symbols</span>
+                <span>At least 2 types: uppercase, lowercase, numbers, or symbols (spaces don't count)</span>
               </div>
             </div>
           </div>
