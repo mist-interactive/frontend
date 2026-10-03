@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+/* Global custom scrollbar matching site theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #52525b #18181b;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #18181b;
+  border-left: 1px solid #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #52525b;
+  border: 1px solid #000000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #65a30d;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #84cc16;
+}
+
+::-webkit-scrollbar-corner {
+  background: #18181b;
+}
+
 @layer base {
   button,
   [role="button"] {
