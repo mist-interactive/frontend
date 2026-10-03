@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import reactLogo from '../assets/react.svg';
+const DEFAULT_AVATAR = "/default_48x48.png";
 import { apiFetch } from "../utils/apiFetch";
 import { getAuthUser, clearAuth } from "../utils/auth";
 
@@ -817,7 +817,7 @@ export default function Profile() {
               {/* Avatar preview and file picker */}
               <div className="flex flex-col items-center sm:items-start gap-3 shrink-0">
                 <img
-                  src={previewUrl || userData.avatarUrl || reactLogo}
+                  src={previewUrl || userData.avatarUrl || DEFAULT_AVATAR}
                   alt={`${userData.username} preview`}
                   className="w-36 h-36 md:w-44 md:h-44 border-4 border-black shadow-[4px_4px_0_0_#000000] bg-zinc-900 object-cover"
                 />
@@ -941,7 +941,7 @@ export default function Profile() {
               {/* Enlarged Avatar */}
               <div className="shrink-0">
                 <img
-                  src={userData.avatarUrl || reactLogo}
+                  src={userData.avatarUrl || DEFAULT_AVATAR}
                   alt={`${userData.username} avatar`}
                   className="w-36 h-36 md:w-44 md:h-44 border-4 border-black shadow-[4px_4px_0_0_#000000] bg-zinc-900 object-cover"
                 />
@@ -1196,7 +1196,7 @@ export default function Profile() {
                               className="flex items-center gap-2 text-sm font-bold text-white hover:text-lime-400 transition-colors"
                             >
                               <img
-                                src={match.opponent_avatar_url || reactLogo}
+                                src={match.opponent_avatar_url || DEFAULT_AVATAR}
                                 alt={match.opponent}
                                 className="w-7 h-7 border border-black bg-zinc-800 object-cover"
                               />
@@ -1316,7 +1316,7 @@ export default function Profile() {
                   <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
                     <Link to={`/profile/${comment.poster_username}`} className="shrink-0">
                       <img
-                        src={comment.poster_avatar_url || reactLogo}
+                        src={comment.poster_avatar_url || DEFAULT_AVATAR}
                         alt={comment.poster_username}
                         className="w-9 h-9 border border-black bg-zinc-800 object-cover"
                       />

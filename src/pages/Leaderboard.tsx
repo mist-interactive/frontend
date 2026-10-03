@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import reactLogo from "../assets/react.svg";
+const DEFAULT_AVATAR = "/default_48x48.png";
 import { apiFetch } from "../utils/apiFetch";
 import { getAuthUser } from "../utils/auth";
 
@@ -258,7 +258,7 @@ export default function Leaderboard() {
                   #2 Runner-Up
                 </div>
                 <img
-                  src={topThree[1].avatar_url || reactLogo}
+                  src={topThree[1].avatar_url || DEFAULT_AVATAR}
                   alt={topThree[1].username}
                   className="w-20 h-20 border-4 border-black bg-zinc-900 object-cover mt-2 shadow-[3px_3px_0_0_#000000]"
                 />
@@ -295,7 +295,7 @@ export default function Leaderboard() {
                   👑 #1 Champion
                 </div>
                 <img
-                  src={topThree[0].avatar_url || reactLogo}
+                  src={topThree[0].avatar_url || DEFAULT_AVATAR}
                   alt={topThree[0].username}
                   className="w-24 h-24 border-4 border-black bg-zinc-900 object-cover mt-2 shadow-[4px_4px_0_0_#000000]"
                 />
@@ -332,7 +332,7 @@ export default function Leaderboard() {
                   #3 Third
                 </div>
                 <img
-                  src={topThree[2].avatar_url || reactLogo}
+                  src={topThree[2].avatar_url || DEFAULT_AVATAR}
                   alt={topThree[2].username}
                   className="w-20 h-20 border-4 border-black bg-zinc-900 object-cover mt-2 shadow-[3px_3px_0_0_#000000]"
                 />
@@ -414,7 +414,7 @@ export default function Leaderboard() {
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
                             <img
-                              src={player.avatar_url || reactLogo}
+                              src={player.avatar_url || DEFAULT_AVATAR}
                               alt={player.username}
                               className="w-8 h-8 border-2 border-black bg-zinc-900 object-cover shrink-0 shadow-[1px_1px_0_0_#000]"
                             />
