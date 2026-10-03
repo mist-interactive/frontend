@@ -277,6 +277,34 @@ export default function Profile() {
     };
   }, [previewUrl]);
 
+  // reset edit state when profile/user changes
+  useEffect(() => {
+    setIsEditing(false);
+    setAvatarFile(null);
+    setBioError(null);
+    setEmailError(null);
+    setEditGeneralError(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }, [username]);
+
+  // ensure edit mode cannot stay active on someone else's profile
+  useEffect(() => {
+    if (!isOwnProfile && isEditing) {
+      setIsEditing(false);
+      setAvatarFile(null);
+      setBioError(null);
+      setEmailError(null);
+      setEditGeneralError(null);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+    }
+  }, [isOwnProfile, isEditing, previewUrl]);
+
   // fetch user profile data
   useEffect(() => {
     const fetchProfile = async () => {
@@ -539,7 +567,7 @@ export default function Profile() {
 
   // save profile updates
   const handleSave = async () => {
-    if (!userData) {
+    if (!userData || !isOwnProfile) {
       return;
     }
 
@@ -807,7 +835,7 @@ export default function Profile() {
         </div>
 
         {/* Top Hero Card (Avatar, Info, Progress, and Combat Stats) */}
-        {isEditing ? (
+        {isEditing && isOwnProfile ? (
           /* Editing form inside hero banner */
           <div className="bg-zinc-800 border-4 border-black p-6 shadow-[6px_6px_0_0_#000000]">
             <h2 className="text-xl font-black uppercase tracking-wider text-zinc-100 mb-6">
