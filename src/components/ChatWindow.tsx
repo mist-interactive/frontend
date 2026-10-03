@@ -31,6 +31,8 @@ interface ChatWindowProps {
   onMarkAsRead?: (friendUsername: string) => void;
 }
 
+const avatarCache = new Map<string, string | null>();
+
 export default function ChatWindow({ friendUsername, onClose, isMinimized, onToggleMinimize, unreadCount = 0, onMarkAsRead }: ChatWindowProps) {
   const [localMinimized, setLocalMinimized] = useState(false);
   const minimized = isMinimized !== undefined ? isMinimized : localMinimized;
@@ -40,10 +42,47 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
   const [currentMessage, setCurrentMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [friendAvatar, setFriendAvatar] = useState<string | null>(() => avatarCache.get(friendUsername) ?? null);
+  const [myAvatar, setMyAvatar] = useState<string | null>(() => avatarCache.get("__me__") ?? null);
   const { sendMessage, lastMessage } = useWebSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastProcessedMsgRef = useRef<any>(null);
   const myUserId = getAuthUser()?.userId ?? -1;
+
+  // fetch avatars with cache
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!avatarCache.has(friendUsername)) {
+      apiFetch(`/api/protected/profile/${friendUsername}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const url = data?.avatarUrl || null;
+          avatarCache.set(friendUsername, url);
+          if (isMounted) setFriendAvatar(url);
+        })
+        .catch(() => {});
+    } else {
+      setFriendAvatar(avatarCache.get(friendUsername) ?? null);
+    }
+
+    if (!avatarCache.has("__me__")) {
+      apiFetch('/api/protected/profile')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const url = data?.avatarUrl || null;
+          avatarCache.set("__me__", url);
+          if (isMounted) setMyAvatar(url);
+        })
+        .catch(() => {});
+    } else {
+      setMyAvatar(avatarCache.get("__me__") ?? null);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [friendUsername]);
 
   // mark messages as read via backend API and notify parent
   const markMessagesAsRead = async (upToId: number) => {
@@ -202,6 +241,23 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
           <Link
             to={`/profile/${friendUsername}`}
             onClick={(e) => e.stopPropagation()}
+            className="shrink-0 flex items-center"
+            title={`View ${friendUsername}'s profile`}
+          >
+            <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-black overflow-hidden shrink-0 bg-zinc-900 shadow-[1px_1px_0_0_#000000]">
+              <img
+                src={friendAvatar || "/default_48x48.png"}
+                alt={friendUsername}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "/default_48x48.png";
+                }}
+              />
+            </div>
+          </Link>
+          <Link
+            to={`/profile/${friendUsername}`}
+            onClick={(e) => e.stopPropagation()}
             className="font-bold text-zinc-100 hover:text-lime-400 hover:underline tracking-widest text-xs uppercase truncate transition-colors cursor-pointer"
             title={`View ${friendUsername}'s profile`}
           >
@@ -241,9 +297,22 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
 
               return (
                 // WRAPPER: Aligns the bubble to the left or right
-                <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                <div key={msg.id} className={`flex items-end gap-1.5 w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                  {!isMe && (
+                    <div className="w-6 h-6 border-2 border-black overflow-hidden shrink-0 bg-zinc-950 shadow-[1px_1px_0_0_#000000] mb-0.5">
+                      <img
+                        src={friendAvatar || "/default_48x48.png"}
+                        alt={friendUsername}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = "/default_48x48.png";
+                        }}
+                      />
+                    </div>
+                  )}
+
                   {/* BUBBLE: Slightly different background color for our own messages */}
-                  <div className={`flex flex-col border-2 border-black p-2.5 shadow-[2px_2px_0_0_#000000] w-fit max-w-[85%] min-w-0 ${
+                  <div className={`flex flex-col border-2 border-black p-2.5 shadow-[2px_2px_0_0_#000000] w-fit max-w-[80%] min-w-0 ${
                     isMe ? 'bg-zinc-700' : 'bg-zinc-800'
                   }`}>
                     <div className={`flex justify-between items-end gap-3 mb-1 border-b pb-1 min-w-0 ${isMe ? 'border-zinc-600' : 'border-zinc-700'}`}>
@@ -259,6 +328,19 @@ export default function ChatWindow({ friendUsername, onClose, isMinimized, onTog
                       {msg.content}
                     </p>
                   </div>
+
+                  {isMe && (
+                    <div className="w-6 h-6 border-2 border-black overflow-hidden shrink-0 bg-zinc-950 shadow-[1px_1px_0_0_#000000] mb-0.5">
+                      <img
+                        src={myAvatar || "/default_48x48.png"}
+                        alt="Me"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = "/default_48x48.png";
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
