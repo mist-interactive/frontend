@@ -199,6 +199,15 @@ export default function Profile() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
 
+  // state for friend request actions on other player profiles
+  const [friendshipState, setFriendshipState] = useState<{
+    status: 'none' | 'pending' | 'accepted' | 'blocked';
+    isIncoming?: boolean;
+    friendshipId?: number;
+  }>({ status: 'none' });
+  const [isFriendActionLoading, setIsFriendActionLoading] = useState(false);
+  const [friendActionError, setFriendActionError] = useState<string | null>(null);
+
   // state for account deletion modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
@@ -379,6 +388,42 @@ export default function Profile() {
       fetchFriendsStatus();
     }
   }, [username]);
+
+  // check friendship status with the viewed player if not own profile
+  useEffect(() => {
+    if (isOwnProfile || !userData?.username || !authUser) {
+      setFriendshipState({ status: 'none' });
+      setFriendActionError(null);
+      return;
+    }
+
+    const checkFriendship = async () => {
+      try {
+        const res = await apiFetch('/api/protected/friends');
+        if (res.ok) {
+          const friendsList = await res.json();
+          if (Array.isArray(friendsList)) {
+            const match = friendsList.find(
+              (f: any) => f.username === userData.username
+            );
+            if (match) {
+              setFriendshipState({
+                status: match.status,
+                isIncoming: match.is_incoming,
+                friendshipId: match.friendship_id,
+              });
+              return;
+            }
+          }
+        }
+        setFriendshipState({ status: 'none' });
+      } catch (err) {
+        console.error("Failed to check friendship status:", err);
+      }
+    };
+
+    checkFriendship();
+  }, [username, userData?.username, isOwnProfile, authUser?.userId]);
 
   // fetch comments for the displayed profile
   useEffect(() => {
@@ -675,6 +720,72 @@ export default function Profile() {
       setEditGeneralError("Network error during profile update");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // send friend request to the currently viewed player
+  const handleSendFriendRequest = async () => {
+    if (!userData?.username || isFriendActionLoading) return;
+    setIsFriendActionLoading(true);
+    setFriendActionError(null);
+
+    try {
+      const res = await apiFetch('/api/protected/friends', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ target: userData.username }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || 'Failed to send friend request');
+      }
+
+      const data = await res.json();
+      setFriendshipState({
+        status: data.status || 'pending',
+        isIncoming: false,
+        friendshipId: data.id,
+      });
+    } catch (err: any) {
+      console.error('Error sending friend request:', err);
+      setFriendActionError(err.message || 'Failed to send friend request');
+    } finally {
+      setIsFriendActionLoading(false);
+    }
+  };
+
+  // accept pending incoming friend request from the currently viewed player
+  const handleAcceptFriendRequest = async () => {
+    if (!friendshipState.friendshipId || isFriendActionLoading) return;
+    setIsFriendActionLoading(true);
+    setFriendActionError(null);
+
+    try {
+      const res = await apiFetch(`/api/protected/friends/${friendshipState.friendshipId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'accepted' }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || 'Failed to accept friend request');
+      }
+
+      setFriendshipState((prev) => ({
+        ...prev,
+        status: 'accepted',
+      }));
+    } catch (err: any) {
+      console.error('Error accepting friend request:', err);
+      setFriendActionError(err.message || 'Failed to accept friend request');
+    } finally {
+      setIsFriendActionLoading(false);
     }
   };
 
@@ -987,7 +1098,7 @@ export default function Profile() {
                     </span>
                   </div>
 
-                  {isOwnProfile && (
+                  {isOwnProfile ? (
                     <div className="flex flex-col sm:items-end gap-2 shrink-0">
                       <button
                         onClick={() => {
@@ -1012,6 +1123,46 @@ export default function Profile() {
                       >
                         Delete Account
                       </button>
+                    </div>
+                  ) : authUser && (
+                    <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                      {friendshipState.status === 'none' && (
+                        <button
+                          onClick={handleSendFriendRequest}
+                          disabled={isFriendActionLoading}
+                          className="px-4 py-2 bg-lime-600 hover:bg-lime-500 text-black font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs w-full sm:w-auto text-center disabled:opacity-50"
+                        >
+                          {isFriendActionLoading ? "Sending..." : "+ Send Friend Request"}
+                        </button>
+                      )}
+                      {friendshipState.status === 'pending' && !friendshipState.isIncoming && (
+                        <button
+                          disabled
+                          className="px-4 py-2 bg-zinc-800 text-zinc-400 font-bold uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] text-xs w-full sm:w-auto text-center cursor-default"
+                        >
+                          Request Pending
+                        </button>
+                      )}
+                      {friendshipState.status === 'pending' && friendshipState.isIncoming && (
+                        <button
+                          onClick={handleAcceptFriendRequest}
+                          disabled={isFriendActionLoading}
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs w-full sm:w-auto text-center disabled:opacity-50"
+                        >
+                          {isFriendActionLoading ? "Accepting..." : "Accept Friend Request"}
+                        </button>
+                      )}
+                      {friendshipState.status === 'accepted' && (
+                        <div className="px-4 py-2 bg-zinc-900 border-2 border-lime-500/50 text-lime-400 font-bold uppercase tracking-widest text-xs flex items-center gap-1.5 shadow-[2px_2px_0_0_#000000]">
+                          <span className="w-2 h-2 bg-lime-500 border border-black shadow-[1px_1px_0_0_#000]"></span>
+                          <span>Friends</span>
+                        </div>
+                      )}
+                      {friendActionError && (
+                        <span className="text-rose-400 text-[10px] font-bold uppercase tracking-wider">
+                          {friendActionError}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
