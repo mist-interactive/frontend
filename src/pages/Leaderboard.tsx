@@ -92,7 +92,6 @@ export default function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [sortBy, setSortBy] = useState<SortOption>("wins");
   const [isLoading, setIsLoading] = useState(true);
-  const [isDemoData, setIsDemoData] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const authUser = getAuthUser();
@@ -105,10 +104,8 @@ export default function Leaderboard() {
       if (response.ok) {
         const data: LeaderboardEntry[] = await response.json();
         setEntries(data);
-        setIsDemoData(false);
       } else {
         setEntries(DEMO_LEADERBOARD_ENTRIES);
-        setIsDemoData(true);
         if (response.status === 404) {
           setNotice("Backend endpoint (GET /api/leaderboard) is pending deployment. Displaying preview data below.");
         } else {
@@ -117,7 +114,6 @@ export default function Leaderboard() {
       }
     } catch {
       setEntries(DEMO_LEADERBOARD_ENTRIES);
-      setIsDemoData(true);
       setNotice("Offline preview mode: live leaderboard data will synchronize once the backend service is deployed.");
     } finally {
       setIsLoading(false);
