@@ -256,7 +256,7 @@ export default function Profile() {
         } else if (deleteStep === 2) {
           const isConfirmed =
             deleteConfirmText.trim() === "DELETE" ||
-            Boolean(userData && deleteConfirmText.trim().toLowerCase() === userData.username.toLowerCase());
+            Boolean(userData && deleteConfirmText.trim() === userData.username);
           if (isConfirmed && !isDeleting) {
             e.preventDefault();
             handleDeleteAccount();
@@ -1634,7 +1634,7 @@ export default function Profile() {
                     e.preventDefault();
                     const isConfirmed =
                       deleteConfirmText.trim() === "DELETE" ||
-                      Boolean(userData && deleteConfirmText.trim().toLowerCase() === userData.username.toLowerCase());
+                      Boolean(userData && deleteConfirmText.trim() === userData.username);
                     if (isConfirmed && !isDeleting) {
                       handleDeleteAccount();
                     }
@@ -1653,7 +1653,7 @@ export default function Profile() {
                       value={deleteConfirmText}
                       onChange={(e) => setDeleteConfirmText(e.target.value)}
                       placeholder={`Type DELETE or ${userData.username}`}
-                      className="w-full bg-zinc-900 border-4 border-black p-3 text-white font-mono uppercase tracking-widest text-sm outline-none focus:border-rose-500 transition-colors"
+                      className="w-full bg-zinc-900 border-4 border-black p-3 text-white font-mono tracking-widest text-sm outline-none focus:border-rose-500 transition-colors"
                     />
                   </div>
 
@@ -1671,7 +1671,7 @@ export default function Profile() {
                       disabled={
                         isDeleting ||
                         (deleteConfirmText.trim() !== "DELETE" &&
-                          deleteConfirmText.trim().toLowerCase() !== userData.username.toLowerCase())
+                          deleteConfirmText.trim() !== userData.username)
                       }
                       className="flex-1 py-3 px-4 bg-rose-700 hover:bg-rose-600 text-white font-black uppercase tracking-widest text-xs border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed text-center"
                     >
