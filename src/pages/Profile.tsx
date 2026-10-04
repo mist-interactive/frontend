@@ -866,6 +866,9 @@ export default function Profile() {
         isIncoming: false,
         friendshipId: data.id,
       });
+
+      // notify friend drawer to sync friends list
+      window.dispatchEvent(new CustomEvent('friend-sync'));
     } catch (err: any) {
       console.error('Error sending friend request:', err);
       setFriendActionError(err.message || 'Failed to send friend request');
@@ -898,6 +901,9 @@ export default function Profile() {
         ...prev,
         status: 'accepted',
       }));
+
+      // notify friend drawer to sync friends list
+      window.dispatchEvent(new CustomEvent('friend-sync'));
     } catch (err: any) {
       console.error('Error accepting friend request:', err);
       setFriendActionError(err.message || 'Failed to accept friend request');

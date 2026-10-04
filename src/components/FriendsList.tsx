@@ -30,12 +30,13 @@ type FriendsAction =
   | { type: 'FETCH_SUCCESS'; payload: Friend[] }
   | { type: 'FETCH_ERROR'; payload: string }
   | { type: 'ADD_FRIEND'; payload: Friend }
-  | { type: 'UPDATE_STATUS'; payload: { id: number; status: 'accepted' | 'blocked' } }
+  | { type: 'UPDATE_STATUS'; payload: { id: number; status: 'accepted' | 'blocked'; is_online?: boolean } }
+  | { type: 'ACCEPT_FRIEND_RESPONSE'; payload: { friendship_id: number; user_id?: number; username: string; avatar_url?: string | null; is_online?: boolean } }
   | { type: 'REMOVE_FRIEND'; payload: number }
   | { type: 'SET_INITIAL_PRESENCE'; payload: string[] }
   | { type: 'UPDATE_PRESENCE'; payload: { username: string; is_online: boolean } };
 
-// React Reducer, takes list from api and sets it into a state
+// react reducer, takes list from api and sets it into a state
 function friendsReducer(state: FriendsState, action: FriendsAction): FriendsState {
   switch (action.type) {
     case 'FETCH_START':
@@ -56,10 +57,57 @@ function friendsReducer(state: FriendsState, action: FriendsAction): FriendsStat
         ...state,
         items: state.items.map(friend => 
           friend.friendship_id === action.payload.id 
-            ? { ...friend, status: action.payload.status } 
+            ? { 
+                ...friend, 
+                status: action.payload.status,
+                ...(action.payload.is_online !== undefined ? { is_online: action.payload.is_online } : {})
+              } 
             : friend
         )
       };
+
+    case 'ACCEPT_FRIEND_RESPONSE': {
+      // update existing friend or append new friend to items
+      const { friendship_id, user_id, username, avatar_url, is_online = true } = action.payload;
+      const existing = state.items.find(
+        (f) => f.friendship_id === friendship_id || f.username.toLowerCase() === username.toLowerCase()
+      );
+
+      if (existing) {
+        return {
+          ...state,
+          items: state.items.map((friend) =>
+            friend.friendship_id === friendship_id || friend.username.toLowerCase() === username.toLowerCase()
+              ? {
+                  ...friend,
+                  friendship_id,
+                  user_id: user_id || friend.user_id,
+                  username: username || friend.username,
+                  avatar_url: avatar_url !== undefined ? avatar_url : friend.avatar_url,
+                  status: 'accepted',
+                  is_online: is_online
+                }
+              : friend
+          )
+        };
+      }
+
+      // if friend was not in list yet, append as accepted friend
+      const newFriend: Friend = {
+        friendship_id,
+        user_id: user_id || 0,
+        username,
+        avatar_url: avatar_url || null,
+        status: 'accepted',
+        is_incoming: false,
+        is_online: is_online
+      };
+
+      return {
+        ...state,
+        items: [...state.items, newFriend]
+      };
+    }
 
     case 'REMOVE_FRIEND':
       return {
@@ -81,7 +129,7 @@ function friendsReducer(state: FriendsState, action: FriendsAction): FriendsStat
         ...state,
         // find the correct user and overwrite its boolean value
         items: state.items.map(friend => 
-          friend.username === action.payload.username 
+          friend.username.toLowerCase() === action.payload.username.toLowerCase() 
             ? { ...friend, is_online: action.payload.is_online } 
             : friend
         )
@@ -103,7 +151,7 @@ interface FriendsListProps {
 export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts = {}, onInitialUnreadCounts }: FriendsListProps) {
 
   const [newFriendName, setNewFriendName] = useState("");
-  const { sendMessage, lastMessage } = useWebSocket();
+  const { sendMessage, subscribe } = useWebSocket();
   const [cooldowns, setCooldowns] = useState<string[]>([]);
 
   // init useReducer
@@ -113,101 +161,113 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
     error: null
   });
   
-  useEffect(() => {
-    const fetchFriends = async () => {
-      dispatch({ type: 'FETCH_START' });
+  // helper to fetch friends from backend
+  const fetchFriends = async () => {
+    dispatch({ type: 'FETCH_START' });
 
-      try {
-        const response = await apiFetch('/api/protected/friends');
-        
-        if (!response.ok) {
-          throw new Error('Error fetching friendslist');
-        }
-        const data = await response.json();
-        
-        // send data to reducer
-        // reducer puts the data into state.items array.
-        dispatch({ type: 'FETCH_SUCCESS', payload: data });
-
-        if (onInitialUnreadCounts && Array.isArray(data)) {
-          const initialMap: Record<string, number> = {};
-          for (const item of data) {
-            if (item.username && item.unread_count > 0) {
-              initialMap[item.username] = Number(item.unread_count);
-            }
-          }
-          onInitialUnreadCounts(initialMap);
-        }
-        
-      } catch (error) {
-        // error catching
-        dispatch({ type: 'FETCH_ERROR', payload: 'Something went wrong' });
+    try {
+      const response = await apiFetch('/api/protected/friends');
+      
+      if (!response.ok) {
+        throw new Error('Error fetching friendslist');
       }
-    };
+      const data = await response.json();
+      
+      // send data to reducer
+      // reducer puts the data into state.items array.
+      dispatch({ type: 'FETCH_SUCCESS', payload: data });
 
-    // Execute
+      if (onInitialUnreadCounts && Array.isArray(data)) {
+        const initialMap: Record<string, number> = {};
+        for (const item of data) {
+          if (item.username && item.unread_count > 0) {
+            initialMap[item.username] = Number(item.unread_count);
+          }
+        }
+        onInitialUnreadCounts(initialMap);
+      }
+      
+    } catch (error) {
+      // error catching
+      dispatch({ type: 'FETCH_ERROR', payload: 'Something went wrong' });
+    }
+  };
+
+  useEffect(() => {
+    // execute initial fetch
     fetchFriends();
-    
+
+    // listen for cross-component friend updates (e.g. from profile page)
+    const handleFriendSync = () => {
+      fetchFriends();
+    };
+    window.addEventListener('friend-sync', handleFriendSync);
+    return () => {
+      window.removeEventListener('friend-sync', handleFriendSync);
+    };
   }, []);
 
-  // listen presence updates through ws
+  // listen to websocket events synchronously via subscriber
   useEffect(() => {
-    if (!lastMessage) return;
-    
-
-    switch (lastMessage.type) {
-      case 'initial_presence':
-        dispatch({ 
-          type: 'SET_INITIAL_PRESENCE', 
-          payload: lastMessage.payload.online_users 
-        });
-        break;
-
-      case 'presence_update':
-        dispatch({ 
-          type: 'UPDATE_PRESENCE', 
-          payload: { 
-            username: lastMessage.payload.username, 
-            is_online: lastMessage.payload.online_status 
-          } 
-        });
-        break;
-
-      // other user sent you friend request
-      case 'friend_request_recv':
-        dispatch({ type: 'ADD_FRIEND', payload: lastMessage.payload });
-        break;
-
-      // other user responded your request
-      case 'friend_request_response':
-        if (lastMessage.payload.status === 'accepted') {
-          // user pressed accept
+    const unsubscribe = subscribe((message) => {
+      switch (message.type) {
+        case 'initial_presence':
           dispatch({ 
-            type: 'UPDATE_STATUS', 
+            type: 'SET_INITIAL_PRESENCE', 
+            payload: message.payload.online_users 
+          });
+          break;
+
+        case 'presence_update':
+          dispatch({ 
+            type: 'UPDATE_PRESENCE', 
             payload: { 
-              id: lastMessage.payload.friendship_id, 
-              status: 'accepted' 
+              username: message.payload.username, 
+              is_online: message.payload.online_status 
             } 
           });
-        } else {
-          // user pressed decline 
-          dispatch({ 
-            type: 'REMOVE_FRIEND', 
-            payload: lastMessage.payload.friendship_id 
-          });
-        }
-        break;
+          break;
+
+        // other user sent you friend request
+        case 'friend_request_recv':
+          dispatch({ type: 'ADD_FRIEND', payload: message.payload });
+          break;
+
+        // other user responded your request
+        case 'friend_request_response':
+          if (message.payload.status === 'accepted') {
+            // user pressed accept, update or add to friends list
+            dispatch({ 
+              type: 'ACCEPT_FRIEND_RESPONSE', 
+              payload: { 
+                friendship_id: message.payload.friendship_id, 
+                user_id: message.payload.user_id,
+                username: message.payload.username,
+                avatar_url: message.payload.avatar_url,
+                is_online: true 
+              } 
+            });
+          } else {
+            // user pressed decline 
+            dispatch({ 
+              type: 'REMOVE_FRIEND', 
+              payload: message.payload.friendship_id 
+            });
+          }
+          break;
 
         // deleted friend
         case 'friend_deleted':
-        dispatch({ 
-          type: 'REMOVE_FRIEND', 
-          payload: Number(lastMessage.payload.friendship_id) 
-        });
-        break;
-      
-    }
-  }, [lastMessage]);
+          dispatch({ 
+            type: 'REMOVE_FRIEND', 
+            payload: Number(message.payload.friendship_id) 
+          });
+          break;
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe]);
 
   // handler for adding new friend (empty stub for now)
   // deny empty field
@@ -292,7 +352,7 @@ export default function FriendsList({ onOpenChat, isOpen, onClose, unreadCounts 
       }
       dispatch({ 
         type: 'UPDATE_STATUS', 
-        payload: { id: friendship_id, status: 'accepted' } 
+        payload: { id: friendship_id, status: 'accepted', is_online: true } 
       });
 
       console.log("Request accepted!");
