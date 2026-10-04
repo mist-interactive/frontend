@@ -1,8 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import reactLogo from '../assets/react.svg';
+const DEFAULT_AVATAR = "/default_48x48.png";
 import { apiFetch } from "../utils/apiFetch";
 import { getAuthUser, clearAuth } from "../utils/auth";
+
+function checkPasswordComplexity(pw: string): {
+  hasLength: boolean;
+  hasMixedChars: boolean;
+  isValid: boolean;
+} {
+  const hasLength = pw.length >= 8 && pw.length <= 72;
+  const hasLower = /[a-z]/.test(pw);
+  const hasUpper = /[A-Z]/.test(pw);
+  const hasDigit = /[0-9]/.test(pw);
+  const hasSpecial = /[\p{P}\p{S}]/u.test(pw);
+  const typesCount = [hasLower, hasUpper, hasDigit, hasSpecial].filter(Boolean).length;
+  const hasMixedChars = typesCount >= 2;
+  return {
+    hasLength,
+    hasMixedChars,
+    isValid: hasLength && hasMixedChars,
+  };
+}
 
 interface UserStats {
   games_played: number;
@@ -199,6 +218,111 @@ export default function Profile() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
 
+  // password change states
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const resetPasswordFields = () => {
+    setOldPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setIsChangingPassword(false);
+  };
+
+  const handleChangePassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!oldPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
+
+    if (oldPassword.length < 8 || oldPassword.length > 72) {
+      setPasswordError("Current password must be between 8 and 72 characters.");
+      return;
+    }
+
+    if (!newPassword) {
+      setPasswordError("Please enter a new password.");
+      return;
+    }
+
+    const complexity = checkPasswordComplexity(newPassword);
+    if (!complexity.hasLength) {
+      setPasswordError("New password must be between 8 and 72 characters.");
+      return;
+    }
+
+    if (!complexity.hasMixedChars) {
+      setPasswordError("New password must contain at least 2 types: uppercase, lowercase, numbers, or symbols.");
+      return;
+    }
+
+    if (newPassword === oldPassword) {
+      setPasswordError("New password cannot be the same as current password.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await apiFetch('/api/protected/password', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          oldPassword: oldPassword,
+          newPassword: newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        if (res.status === 401) {
+          setPasswordError("Incorrect current password.");
+        } else if (errText.includes("New password cannot be the same")) {
+          setPasswordError("New password cannot be the same as current password.");
+        } else if (errText.includes("Validation error")) {
+          setPasswordError("New password does not meet complexity requirements.");
+        } else {
+          setPasswordError(errText || "Failed to update password.");
+        }
+        return;
+      }
+
+      setPasswordSuccess("Password updated successfully!");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err: any) {
+      setPasswordError("Network error. Could not reach the server.");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  // state for friend request actions on other player profiles
+  const [friendshipState, setFriendshipState] = useState<{
+    status: 'none' | 'pending' | 'accepted' | 'blocked';
+    isIncoming?: boolean;
+    friendshipId?: number;
+  }>({ status: 'none' });
+  const [isFriendActionLoading, setIsFriendActionLoading] = useState(false);
+  const [friendActionError, setFriendActionError] = useState<string | null>(null);
+
   // state for account deletion modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
@@ -247,7 +371,7 @@ export default function Profile() {
         } else if (deleteStep === 2) {
           const isConfirmed =
             deleteConfirmText.trim() === "DELETE" ||
-            Boolean(userData && deleteConfirmText.trim().toLowerCase() === userData.username.toLowerCase());
+            Boolean(userData && deleteConfirmText.trim() === userData.username);
           if (isConfirmed && !isDeleting) {
             e.preventDefault();
             handleDeleteAccount();
@@ -276,6 +400,36 @@ export default function Profile() {
       }
     };
   }, [previewUrl]);
+
+  // reset edit state when profile/user changes
+  useEffect(() => {
+    setIsEditing(false);
+    setAvatarFile(null);
+    setBioError(null);
+    setEmailError(null);
+    setEditGeneralError(null);
+    resetPasswordFields();
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }, [username]);
+
+  // ensure edit mode cannot stay active on someone else's profile
+  useEffect(() => {
+    if (!isOwnProfile && isEditing) {
+      setIsEditing(false);
+      setAvatarFile(null);
+      setBioError(null);
+      setEmailError(null);
+      setEditGeneralError(null);
+      resetPasswordFields();
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+    }
+  }, [isOwnProfile, isEditing, previewUrl]);
 
   // fetch user profile data
   useEffect(() => {
@@ -351,6 +505,42 @@ export default function Profile() {
       fetchFriendsStatus();
     }
   }, [username]);
+
+  // check friendship status with the viewed player if not own profile
+  useEffect(() => {
+    if (isOwnProfile || !userData?.username || !authUser) {
+      setFriendshipState({ status: 'none' });
+      setFriendActionError(null);
+      return;
+    }
+
+    const checkFriendship = async () => {
+      try {
+        const res = await apiFetch('/api/protected/friends');
+        if (res.ok) {
+          const friendsList = await res.json();
+          if (Array.isArray(friendsList)) {
+            const match = friendsList.find(
+              (f: any) => f.username === userData.username
+            );
+            if (match) {
+              setFriendshipState({
+                status: match.status,
+                isIncoming: match.is_incoming,
+                friendshipId: match.friendship_id,
+              });
+              return;
+            }
+          }
+        }
+        setFriendshipState({ status: 'none' });
+      } catch (err) {
+        console.error("Failed to check friendship status:", err);
+      }
+    };
+
+    checkFriendship();
+  }, [username, userData?.username, isOwnProfile, authUser?.userId]);
 
   // fetch comments for the displayed profile
   useEffect(() => {
@@ -539,7 +729,7 @@ export default function Profile() {
 
   // save profile updates
   const handleSave = async () => {
-    if (!userData) {
+    if (!userData || !isOwnProfile) {
       return;
     }
 
@@ -647,6 +837,72 @@ export default function Profile() {
       setEditGeneralError("Network error during profile update");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // send friend request to the currently viewed player
+  const handleSendFriendRequest = async () => {
+    if (!userData?.username || isFriendActionLoading) return;
+    setIsFriendActionLoading(true);
+    setFriendActionError(null);
+
+    try {
+      const res = await apiFetch('/api/protected/friends', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ target: userData.username }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || 'Failed to send friend request');
+      }
+
+      const data = await res.json();
+      setFriendshipState({
+        status: data.status || 'pending',
+        isIncoming: false,
+        friendshipId: data.id,
+      });
+    } catch (err: any) {
+      console.error('Error sending friend request:', err);
+      setFriendActionError(err.message || 'Failed to send friend request');
+    } finally {
+      setIsFriendActionLoading(false);
+    }
+  };
+
+  // accept pending incoming friend request from the currently viewed player
+  const handleAcceptFriendRequest = async () => {
+    if (!friendshipState.friendshipId || isFriendActionLoading) return;
+    setIsFriendActionLoading(true);
+    setFriendActionError(null);
+
+    try {
+      const res = await apiFetch(`/api/protected/friends/${friendshipState.friendshipId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'accepted' }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || 'Failed to accept friend request');
+      }
+
+      setFriendshipState((prev) => ({
+        ...prev,
+        status: 'accepted',
+      }));
+    } catch (err: any) {
+      console.error('Error accepting friend request:', err);
+      setFriendActionError(err.message || 'Failed to accept friend request');
+    } finally {
+      setIsFriendActionLoading(false);
     }
   };
 
@@ -807,7 +1063,7 @@ export default function Profile() {
         </div>
 
         {/* Top Hero Card (Avatar, Info, Progress, and Combat Stats) */}
-        {isEditing ? (
+        {isEditing && isOwnProfile ? (
           /* Editing form inside hero banner */
           <div className="bg-zinc-800 border-4 border-black p-6 shadow-[6px_6px_0_0_#000000]">
             <h2 className="text-xl font-black uppercase tracking-wider text-zinc-100 mb-6">
@@ -817,7 +1073,7 @@ export default function Profile() {
               {/* Avatar preview and file picker */}
               <div className="flex flex-col items-center sm:items-start gap-3 shrink-0">
                 <img
-                  src={previewUrl || userData.avatarUrl || reactLogo}
+                  src={previewUrl || userData.avatarUrl || DEFAULT_AVATAR}
                   alt={`${userData.username} preview`}
                   className="w-36 h-36 md:w-44 md:h-44 border-4 border-black shadow-[4px_4px_0_0_#000000] bg-zinc-900 object-cover"
                 />
@@ -902,7 +1158,140 @@ export default function Profile() {
                   </div>
                 </label>
 
-                <div className="flex flex-wrap gap-3 mt-2">
+                {/* Change Password Section */}
+                <div className="border-t-2 border-zinc-700 pt-4 mt-1 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-200">
+                      Change Password
+                    </span>
+                    {(oldPassword || newPassword || confirmNewPassword || passwordError || passwordSuccess) && (
+                      <button
+                        type="button"
+                        onClick={resetPasswordFields}
+                        className="text-[10px] text-zinc-400 hover:text-zinc-200 uppercase font-bold tracking-wider cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {passwordError && (
+                    <div className="p-2.5 bg-rose-950/80 border-2 border-rose-600 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                      {passwordError}
+                    </div>
+                  )}
+
+                  {passwordSuccess && (
+                    <div className="p-2.5 bg-lime-950/80 border-2 border-lime-600 text-lime-300 text-xs font-bold uppercase tracking-wider">
+                      {passwordSuccess}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300 sm:col-span-2">
+                      Current Password:
+                      <input
+                        type="password"
+                        maxLength={72}
+                        value={oldPassword}
+                        onChange={(e) => {
+                          setOldPassword(e.target.value);
+                          setPasswordError(null);
+                          setPasswordSuccess(null);
+                        }}
+                        placeholder="••••••••"
+                        className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-500 transition-colors text-white text-sm font-medium w-full"
+                      />
+                    </label>
+
+                    <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
+                      New Password:
+                      <input
+                        type="password"
+                        maxLength={72}
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setPasswordError(null);
+                          setPasswordSuccess(null);
+                        }}
+                        placeholder="••••••••"
+                        className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-500 transition-colors text-white text-sm font-medium w-full"
+                      />
+                    </label>
+
+                    <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-widest text-zinc-300">
+                      Confirm New Password:
+                      <input
+                        type="password"
+                        maxLength={72}
+                        value={confirmNewPassword}
+                        onChange={(e) => {
+                          setConfirmNewPassword(e.target.value);
+                          setPasswordError(null);
+                          setPasswordSuccess(null);
+                        }}
+                        placeholder="••••••••"
+                        className="bg-zinc-900 border-4 border-black p-2 outline-none focus:border-lime-500 transition-colors text-white text-sm font-medium w-full"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Interactive Password Requirement Indicators */}
+                  <div className="flex flex-col gap-1 text-[11px] font-bold">
+                    <div
+                      className={`flex items-center gap-1.5 transition-colors ${
+                        checkPasswordComplexity(newPassword).hasLength ? "text-lime-400" : "text-zinc-500"
+                      }`}
+                    >
+                      <span>{checkPasswordComplexity(newPassword).hasLength ? "✓" : "•"}</span>
+                      <span>8 to 72 characters</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-1.5 transition-colors ${
+                        checkPasswordComplexity(newPassword).hasMixedChars ? "text-lime-400" : "text-zinc-500"
+                      }`}
+                    >
+                      <span>{checkPasswordComplexity(newPassword).hasMixedChars ? "✓" : "•"}</span>
+                      <span>At least 2 types: uppercase, lowercase, numbers, or symbols</span>
+                    </div>
+                    {newPassword.length > 0 && oldPassword.length > 0 && newPassword === oldPassword && (
+                      <div className="flex items-center gap-1.5 text-rose-400">
+                        <span>✕</span>
+                        <span>New password cannot be the same as current password</span>
+                      </div>
+                    )}
+                    {confirmNewPassword.length > 0 && (
+                      <div
+                        className={`flex items-center gap-1.5 transition-colors ${
+                          newPassword === confirmNewPassword ? "text-lime-400" : "text-rose-400"
+                        }`}
+                      >
+                        <span>{newPassword === confirmNewPassword ? "✓" : "✕"}</span>
+                        <span>{newPassword === confirmNewPassword ? "Passwords match" : "Passwords do not match"}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-start pt-1">
+                    <button
+                      type="button"
+                      onClick={handleChangePassword}
+                      disabled={
+                        isChangingPassword ||
+                        !oldPassword ||
+                        !checkPasswordComplexity(newPassword).isValid ||
+                        newPassword === oldPassword ||
+                        newPassword !== confirmNewPassword
+                      }
+                      className="px-4 py-2 bg-lime-600 text-black font-black uppercase tracking-widest border-2 border-black shadow-[2px_2px_0_0_#000000] hover:bg-lime-500 active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs text-center"
+                    >
+                      {isChangingPassword ? "Updating Password..." : "Update Password"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 mt-4 border-t-2 border-zinc-700 pt-4">
                   <button
                     onClick={handleSave}
                     disabled={isSaving || Boolean(bioError) || Boolean(emailError) || !userData.email?.trim() || (Boolean(userData.bio) && userData.bio!.length > 500)}
@@ -923,6 +1312,7 @@ export default function Profile() {
                       setBioError(null);
                       setEmailError(null);
                       setEditGeneralError(null);
+                      resetPasswordFields();
                       setIsEditing(false);
                     }}
                     disabled={isSaving}
@@ -941,7 +1331,7 @@ export default function Profile() {
               {/* Enlarged Avatar */}
               <div className="shrink-0">
                 <img
-                  src={userData.avatarUrl || reactLogo}
+                  src={userData.avatarUrl || DEFAULT_AVATAR}
                   alt={`${userData.username} avatar`}
                   className="w-36 h-36 md:w-44 md:h-44 border-4 border-black shadow-[4px_4px_0_0_#000000] bg-zinc-900 object-cover"
                 />
@@ -959,7 +1349,7 @@ export default function Profile() {
                     </span>
                   </div>
 
-                  {isOwnProfile && (
+                  {isOwnProfile ? (
                     <div className="flex flex-col sm:items-end gap-2 shrink-0">
                       <button
                         onClick={() => {
@@ -984,6 +1374,46 @@ export default function Profile() {
                       >
                         Delete Account
                       </button>
+                    </div>
+                  ) : authUser && (
+                    <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                      {friendshipState.status === 'none' && (
+                        <button
+                          onClick={handleSendFriendRequest}
+                          disabled={isFriendActionLoading}
+                          className="px-4 py-2 bg-lime-600 hover:bg-lime-500 text-black font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs w-full sm:w-auto text-center disabled:opacity-50"
+                        >
+                          {isFriendActionLoading ? "Sending..." : "+ Send Friend Request"}
+                        </button>
+                      )}
+                      {friendshipState.status === 'pending' && !friendshipState.isIncoming && (
+                        <button
+                          disabled
+                          className="px-4 py-2 bg-zinc-800 text-zinc-400 font-bold uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] text-xs w-full sm:w-auto text-center cursor-default"
+                        >
+                          Request Pending
+                        </button>
+                      )}
+                      {friendshipState.status === 'pending' && friendshipState.isIncoming && (
+                        <button
+                          onClick={handleAcceptFriendRequest}
+                          disabled={isFriendActionLoading}
+                          className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-0.5 active:translate-x-0.5 active:shadow-none transition-all text-xs w-full sm:w-auto text-center disabled:opacity-50"
+                        >
+                          {isFriendActionLoading ? "Accepting..." : "Accept Friend Request"}
+                        </button>
+                      )}
+                      {friendshipState.status === 'accepted' && (
+                        <div className="px-4 py-2 bg-zinc-900 border-2 border-lime-500/50 text-lime-400 font-bold uppercase tracking-widest text-xs flex items-center gap-1.5 shadow-[2px_2px_0_0_#000000]">
+                          <span className="w-2 h-2 bg-lime-500 border border-black shadow-[1px_1px_0_0_#000]"></span>
+                          <span>Friends</span>
+                        </div>
+                      )}
+                      {friendActionError && (
+                        <span className="text-rose-400 text-[10px] font-bold uppercase tracking-wider">
+                          {friendActionError}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1196,7 +1626,7 @@ export default function Profile() {
                               className="flex items-center gap-2 text-sm font-bold text-white hover:text-lime-400 transition-colors"
                             >
                               <img
-                                src={match.opponent_avatar_url || reactLogo}
+                                src={match.opponent_avatar_url || DEFAULT_AVATAR}
                                 alt={match.opponent}
                                 className="w-7 h-7 border border-black bg-zinc-800 object-cover"
                               />
@@ -1316,7 +1746,7 @@ export default function Profile() {
                   <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
                     <Link to={`/profile/${comment.poster_username}`} className="shrink-0">
                       <img
-                        src={comment.poster_avatar_url || reactLogo}
+                        src={comment.poster_avatar_url || DEFAULT_AVATAR}
                         alt={comment.poster_username}
                         className="w-9 h-9 border border-black bg-zinc-800 object-cover"
                       />
@@ -1455,7 +1885,7 @@ export default function Profile() {
                     e.preventDefault();
                     const isConfirmed =
                       deleteConfirmText.trim() === "DELETE" ||
-                      Boolean(userData && deleteConfirmText.trim().toLowerCase() === userData.username.toLowerCase());
+                      Boolean(userData && deleteConfirmText.trim() === userData.username);
                     if (isConfirmed && !isDeleting) {
                       handleDeleteAccount();
                     }
@@ -1474,7 +1904,7 @@ export default function Profile() {
                       value={deleteConfirmText}
                       onChange={(e) => setDeleteConfirmText(e.target.value)}
                       placeholder={`Type DELETE or ${userData.username}`}
-                      className="w-full bg-zinc-900 border-4 border-black p-3 text-white font-mono uppercase tracking-widest text-sm outline-none focus:border-rose-500 transition-colors"
+                      className="w-full bg-zinc-900 border-4 border-black p-3 text-white font-mono tracking-widest text-sm outline-none focus:border-rose-500 transition-colors"
                     />
                   </div>
 
@@ -1492,7 +1922,7 @@ export default function Profile() {
                       disabled={
                         isDeleting ||
                         (deleteConfirmText.trim() !== "DELETE" &&
-                          deleteConfirmText.trim().toLowerCase() !== userData.username.toLowerCase())
+                          deleteConfirmText.trim() !== userData.username)
                       }
                       className="flex-1 py-3 px-4 bg-rose-700 hover:bg-rose-600 text-white font-black uppercase tracking-widest text-xs border-2 border-black shadow-[3px_3px_0_0_#000000] active:translate-y-1 active:translate-x-1 active:shadow-none transition-all disabled:opacity-40 disabled:cursor-not-allowed text-center"
                     >
