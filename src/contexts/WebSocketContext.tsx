@@ -44,8 +44,6 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
 
   // set of subscribers listening synchronously for websocket messages
   const listenersRef = useRef<Set<(msg: WSMessage) => void>>(new Set());
-  // flag to stop reconnecting if logged in elsewhere
-  const shouldReconnectRef = useRef(true);
   // flag to guard against concurrent connection calls
   const isConnectingRef = useRef(false);
 
@@ -115,10 +113,6 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
               case 'match_finished':
                 setActiveMatchId(null);
                 break;
-              case 'session_terminated':
-                // stop auto reconnect when session was displaced
-                shouldReconnectRef.current = false;
-                break;
             }
 
             // deliver message immediately to all registered subscribers
@@ -146,7 +140,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
 
         socket.onclose = () => {
           isConnectingRef.current = false;
-          if (!isMounted || !shouldReconnectRef.current) return;
+          if (!isMounted) return;
           console.log("[WS Closed]");
           // auto-reconnect with fresh token if component is still mounted
           reconnectTimeoutRef.current = setTimeout(() => {
